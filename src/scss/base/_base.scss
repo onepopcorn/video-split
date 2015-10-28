@@ -1,5 +1,13 @@
+html{height:100%;overflow:hidden}
+
 body{
+	@include user-select(none);
+	position: relative;
 	font-family:Arial,"sans-serif";
+	color:#fff;
+	background-color:$main-color;
+	position: relative;
+	height:100%;
 }
 
 h1{

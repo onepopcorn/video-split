@@ -1,0 +1,15 @@
+
+@mixin box-shadow($x,$y,$blur,$color)
+{
+	-webkit-box-shadow: $x $y $blur $color;
+	-moz-box-shadow: $x $y $blur $color;
+	box-shadow: $x $y $blur $color;
+}
+
+@mixin user-select($value)
+{
+	-webkit-user-select:$value;
+	-moz-user-select:$value;
+	-ms-user-select:$value;
+	user-select:$value;
+}

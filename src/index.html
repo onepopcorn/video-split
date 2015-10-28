@@ -6,15 +6,22 @@
 	<link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-	<h1>Video split test one</h1>
-	Any changes should be updated at realtime.
-	<div class="videoWrapper">
-		<iframe src="https://player.vimeo.com/video/11127915" width="500" height="281" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+	<div id="preloader"></div>
+	<div id="container">
+		<!-- video 1 114253781 -->
+		<!-- video 2 114766167 -->
+		<div id="video-wrapper-right" class="videoWrapper">
+			<iframe id="right-video" src="https://player.vimeo.com/video/143720162?api=1&player_id=right-video" width="500" height="281" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+		</div>
+		<div id="video-wrapper-left" class="videoWrapper">
+			<iframe id="left-video" src="https://player.vimeo.com/video/143720362?api=1&player_id=left-video" width="500" height="281" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+		</div>
+		<div id="overlay">
+			<div class="arrow left"></div>
+			<div class="line"></div>
+			<div class="arrow right"></div>
+		</div>
 	</div>
-	<div class="videoWrapper">
-		<iframe src="https://player.vimeo.com/video/25924530" width="500" height="281" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
-	</div>
-
 	<script src="js/bundle.js"></script>
 </body>
 </html>

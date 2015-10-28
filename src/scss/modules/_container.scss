@@ -1,0 +1,7 @@
+#container{
+	opacity: 0;
+	&.fadein{
+		opacity: 1;
+		transition: opacity 1s;
+	}
+}
