@@ -27,4 +27,7 @@ When finished use `gulp` to start the development environment. If you just want 
 
 ## TO DO
 
-Minify resulting scripts & assets. Change 
+* Minify resulting scripts & assets
+* Change gulp-ruby-sass for PostCSS
+* Make a preloader class with text messages enabled
+* Make a browser minimum capabilities to allow the experience

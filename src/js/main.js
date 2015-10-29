@@ -6,17 +6,18 @@ let Video = require('./videoitem');
 let container = document.getElementsByTagName('body')[0];
 let overlay = document.getElementById('overlay');
 let preloader = document.getElementById('preloader');
+let message = document.getElementById('message');
 
 let readyCount = 0;
 let isDown = false;
+let isPlaying = false;
+let mouseOffset;
 
-let videoRight = new Video('video-wrapper-right',ready);
-let videoLeft = new Video('video-wrapper-left',ready);
+let videoRight = new Video('video-wrapper-right',loaded);
+let videoLeft = new Video('video-wrapper-left',loaded);
 
-function init(){
-		
+function init(){		
 	moveTo(50);
-	play();
 	document.getElementById('container').className = "fadein";
 	preloader.className = "fadeout";
 }
@@ -24,13 +25,24 @@ function init(){
 function play(){
 	videoRight.play();
 	videoLeft.play();
+	message.className = "fadeout";
 }
 
-function ready(itm){
-	console.log(itm + " ready");
-	
+function loaded(itm){
 	readyCount++;
 	if(readyCount == 2)
+		buffer();
+}
+
+function buffer(target){
+	videoRight.preload(onBufferReady);
+	videoLeft.preload(onBufferReady);
+	
+}
+
+function onBufferReady(target)
+{
+	if(videoRight.isReady && videoLeft.isReady)
 		init();
 }
 
@@ -43,8 +55,12 @@ function moveTo(percent)
 	videoRight.setVolume(1 - percent/100);
 }
 
-overlay.addEventListener('mousedown',function(){
+overlay.addEventListener('mousedown',function(event){
 	isDown = true
+	mouseOffset = event.pageX;
+	
+	if(!isPlaying)
+		play();
 });
 
 overlay.addEventListener('mouseup',function(){
