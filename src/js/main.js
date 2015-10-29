@@ -16,7 +16,7 @@ let videoLeft = new Video('video-wrapper-left',ready);
 function init(){
 		
 	moveTo(50);
-	
+	// play();
 	document.getElementById('container').className = "fadein";
 	preloader.className = "fadeout";
 }
