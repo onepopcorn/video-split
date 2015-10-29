@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 const BUFFER_THRESHOLD =  0.030;
 
@@ -35,7 +35,7 @@ class VideoItem
 	 * @param {Number} Volume value for video normalize to 0 (from 0 to 1)
 	 */
 	setVolume(value){
-		this.player.api('setVolume',value);
+		this.player.api('setVolume',value / 100);
 	};
 
 	/*
