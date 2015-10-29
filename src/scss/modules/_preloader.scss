@@ -11,6 +11,8 @@
 	background-repeat:no-repeat;
 	background-position:center;
 
+	text-align:center;
+
 	&.fadeout{
 		opacity: 0;
 		transition:opacity 1s;

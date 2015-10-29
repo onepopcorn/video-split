@@ -11,7 +11,7 @@ let message = document.getElementById('message');
 let readyCount = 0;
 let isDown = false;
 let isPlaying = false;
-let mouseOffset;
+let pointerOffset = 0;
 
 let videoRight = new Video('video-wrapper-right',loaded);
 let videoLeft = new Video('video-wrapper-left',loaded);
@@ -30,6 +30,7 @@ function play(){
 
 function loaded(itm){
 	readyCount++;
+	preloader.innerHTML = "Loading video " + readyCount;
 	if(readyCount == 2)
 		buffer();
 }
@@ -42,6 +43,7 @@ function buffer(target){
 
 function onBufferReady(target)
 {
+	preloader.innerHTML = "Buffering videos";
 	if(videoRight.isReady && videoLeft.isReady)
 		init();
 }
@@ -57,7 +59,10 @@ function moveTo(percent)
 
 overlay.addEventListener('mousedown',function(event){
 	isDown = true
-	mouseOffset = event.pageX;
+	
+	// This is used to move the soverlay keeping the offset mouse position and preventing a quick jump when mousemove.
+	let overlayOffset = overlay.style.left.substr(0,overlay.style.left.length -1);
+	pointerOffset = 100 * event.pageX / window.innerWidth - overlayOffset;
 	
 	if(!isPlaying)
 		play();
@@ -70,8 +75,8 @@ overlay.addEventListener('mouseup',function(){
 function onmousemove (event){
 	if(isDown)
 	{
-		let percent = 100 * event.pageX / window.innerWidth;
-		moveTo(percent);
+		let percent = 100 * event.pageX / window.innerWidth;	
+		moveTo(percent - pointerOffset);
 	}
 }
 container.addEventListener('mousemove',onmousemove);

@@ -5,6 +5,7 @@ var del        = require('del'),
 	sass       = require('gulp-ruby-sass'),
 	browserify = require('gulp-browatchify'),
 	source     = require('vinyl-source-stream'),
+	uglify     = require('uglifyify'),
 	sync       = require('browser-sync');
 
 /* Paths */
@@ -42,9 +43,10 @@ gulp.task('html',['clean-html'],function(){
 
 gulp.task('js',function(){
 	return gulp.src(paths.source.js)
-		   .pipe(browserify({debug:false,transforms:[babel]}))
+		   .pipe(browserify({debug:false,transforms:[babel,uglify]}))
 		   .on('error',function(err){console.log(err)})
 		   .pipe(source('bundle.js'))
+		   // .pipe(uglify({mangle:false}))
 		   .pipe(gulp.dest(paths.dest.js))
 		   .on('end',function(){sync.reload()});
 });

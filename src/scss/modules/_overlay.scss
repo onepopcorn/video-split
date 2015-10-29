@@ -29,5 +29,10 @@
 			transform:rotateZ(180deg);
 		}
 	}
+
+	&:active{
+		.line, .arrow{opacity: 0.5;}
+
+	}
 }
 

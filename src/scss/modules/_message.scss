@@ -1,0 +1,16 @@
+#message {
+	width:100%;
+	opacity:1;
+	position:absolute;
+	text-align: center;
+	font-weight:bold;
+	font-size:30px;
+	top:35%;
+
+	text-shadow: 2px 2px 2px #666;
+
+	&.fadeout{
+		opacity: 0;
+		transition:opacity 0.5s;
+	}
+}
