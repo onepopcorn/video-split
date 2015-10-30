@@ -62,12 +62,11 @@ function moveTo(percent)
 	videoRight.setVolume(100 - percent + pointerOffset);
 }
 
+
 overlay.element.addEventListener('mousedown',function(event){
 	isDown = true
-
 	// This is used to move the soverlay keeping the offset mouse position and preventing a quick jump when mousemove.
 	pointerOffset = 100 * event.pageX / window.innerWidth - overlay.position;
-	
 	if(!isPlaying)
 		play();
 });
@@ -84,4 +83,3 @@ function onmousemove (event){
 	}
 }
 container.addEventListener('mousemove',onmousemove);
-
