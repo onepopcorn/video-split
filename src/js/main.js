@@ -5,7 +5,7 @@ let Video = require('./videoitem');
 let Preloader = require('./preloader');
 let Overlay = require('./overlay');
 
-let preloader = new Preloader('preloader');
+let preloader = new Preloader('preloader','status');
 let videoRight = new Video('video-wrapper-right',loaded);
 let videoLeft = new Video('video-wrapper-left',loaded);
 let overlay = new Overlay('overlay','message');
@@ -34,7 +34,8 @@ function play(){
 function loaded(itm){
 	readyCount++;
 	loadedPercent += 25;
-	preloader.setMessage('LOADING ' + loadedPercent  + "%");
+	preloader.setProgress(loadedPercent);
+	
 	if(readyCount == 2)
 		buffer();
 }
@@ -47,7 +48,7 @@ function buffer(target){
 function onBufferReady(target)
 {
 	loadedPercent += 25;
-	preloader.setMessage('LOADING ' + loadedPercent + "%");
+	preloader.setProgress(loadedPercent);
 	if(videoRight.isReady && videoLeft.isReady)
 		init();
 }

@@ -2,17 +2,19 @@
 
 class Preloader 
 {
-	constructor(id)
+	constructor(id,infoID)
 	{
 		this.element = document.getElementById(id);
+		this.status = document.getElementById(infoID);
+		this.setProgress(0);
 	}
 
 	fadeout(){
 		this.element.className = "fadeout";
 	}
 
-	setMessage(msg){
-		this.element.innerHTML = msg;
+	setProgress(percent){
+		this.status.innerText = percent + "%";
 	}
 
 }

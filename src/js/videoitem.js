@@ -24,6 +24,10 @@ class VideoItem
 			self.player.removeEvent('ready');
 			self.callback(item);
 		}
+
+		this.player.addEvent('finish',function(){
+			console.log("video finished");
+		});
 	}
 	/*
 	 * A simple method to call play to Vimeo's player
