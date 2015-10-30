@@ -1,6 +1,7 @@
 'use strict';
 
 const BUFFER_THRESHOLD =  0.030;
+let utils = require('./utils');
 
 class VideoItem
 {
@@ -35,7 +36,7 @@ class VideoItem
 	 * @param {Number} Volume value for video normalize to 0 (from 0 to 1)
 	 */
 	setVolume(value){
-		this.player.api('setVolume',value / 100);
+		this.player.api('setVolume',utils.limitNormalizedValue(value / 100));
 	};
 
 	/*

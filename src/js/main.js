@@ -10,7 +10,7 @@ let videoRight = new Video('video-wrapper-right',loaded);
 let videoLeft = new Video('video-wrapper-left',loaded);
 let overlay = new Overlay('overlay','message');
 
-let container = document.getElementsByTagName('body')[0];
+let container = document.getElementById('container');
 
 let readyCount = 0;
 let isDown = false;
@@ -58,7 +58,7 @@ function moveTo(percent)
 	overlay.setPosition(percent);
 
 	videoLeft.setVolume(percent + pointerOffset);
-	videoRight.setVolume(1 - percent + pointerOffset);
+	videoRight.setVolume(100 - percent + pointerOffset);
 }
 
 overlay.element.addEventListener('mousedown',function(event){
