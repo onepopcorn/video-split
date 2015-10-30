@@ -1,32 +1,32 @@
 'use strict';
 
-const BUFFER_THRESHOLD =  0.030;
+const BUFFER_THRESHOLD =  0.075;
 let utils = require('./utils');
 
 class VideoItem
 {
-	/* 
+	/*
 	 * @param {String} ID of div element that holds Vimeo's iframe
-	 * @param {Function} Callback to call when Vimeo's player is ready
+	 * @param {Class} Preloader class to handle video loading process
 	 */
-	constructor(id,callback)
+	constructor(id,preloader)
 	{
-		this.id = id;
 		this.wrapper = document.getElementById(id);
+		this.id = this.wrapper.getAttribute("data-id");
 		this.iframe = this.wrapper.getElementsByTagName('iframe')[0];
 		this.player = $f(this.iframe);
-		this.player.addEvent('ready',_callback);
-		this.callback = callback;
+		this.player.addEvent('ready',_onReady);
 		this.isReady = false;
 
 		let self = this;
-		function _callback(item){
+		// This is called when vimeo player is ready
+		function _onReady(item){
 			self.player.removeEvent('ready');
-			self.callback(item);
-
-			self.player.addEvent('finish',function(){
-				console.log("video finished");
-			});
+			self.preload(preloader);
+			
+			// self.player.addEvent('finish',function(){
+			// 	console.log("video finished");
+			// });
 		}
 	}
 	/*
@@ -37,7 +37,7 @@ class VideoItem
 	};
 
 	/*
-	 * @param {Number} Volume value for video normalize to 0 (from 0 to 1)
+	 * @param {Number} Volume value for video normalized (from 0 to 1)
 	 */
 	setVolume(value){
 		this.player.api('setVolume',utils.limitNormalizedValue(value / 100));
@@ -52,7 +52,7 @@ class VideoItem
 	/*
 	 * @param {Function} Method to force Vimeo's videos to buffer before activate user interaction. This is to start videos in sync as much as possible
 	 */
-	preload(callback){
+	preload(preloader){
 		let self = this;
 		// This forces players to start buffer
 		this.player.addEvent('play',function(){
@@ -64,12 +64,13 @@ class VideoItem
 
 		// This hold preloader 'til videos have enough loaded buffer to play in sync
 		this.player.addEvent('loadProgress',function(e){
-			// console.log(e);
+			let percent = e.percent * 100 / BUFFER_THRESHOLD;
+			preloader.setProgress(percent,self.id);	
+			
 			if(e.percent > BUFFER_THRESHOLD && !self.isReady)
 			{
 				self.isReady = true;
-				// self.player.removeEvent('loadProgress');
-				callback(self);
+				self.player.removeEvent('loadProgress');
 			}	
 		});
 	}

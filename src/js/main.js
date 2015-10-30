@@ -5,24 +5,20 @@ let Video = require('./videoitem');
 let Preloader = require('./preloader');
 let Overlay = require('./overlay');
 
-let preloader = new Preloader('preloader','status');
-let videoRight = new Video('video-wrapper-right',loaded);
-let videoLeft = new Video('video-wrapper-left',loaded);
+let preloader = new Preloader('preloader','status',init);
+let videoRight = new Video('video-wrapper-right',preloader);
+let videoLeft = new Video('video-wrapper-left',preloader);
 let overlay = new Overlay('overlay','message');
 
 let container = document.getElementById('container');
 
-let readyCount = 0;
 let isDown = false;
 let isPlaying = false;
 let pointerOffset = 0;
-let loadedPercent = 0;
-
 
 function init(){		
 	moveTo(50);
 	document.getElementById('container').className = "fadein";
-	preloader.fadeout();
 }
 
 function play(){
@@ -31,24 +27,8 @@ function play(){
 	overlay.hideMessage();
 }
 
-function loaded(itm){
-	readyCount++;
-	loadedPercent += 25;
-	preloader.setProgress(loadedPercent);
-	
-	if(readyCount == 2)
-		buffer();
-}
-
-function buffer(target){
-	videoRight.preload(onBufferReady);
-	videoLeft.preload(onBufferReady);
-}
-
 function onBufferReady(target)
 {
-	loadedPercent += 25;
-	preloader.setProgress(loadedPercent);
 	if(videoRight.isReady && videoLeft.isReady)
 		init();
 }
