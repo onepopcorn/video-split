@@ -27,12 +27,6 @@ function play(){
 	overlay.hideMessage();
 }
 
-function onBufferReady(target)
-{
-	if(videoRight.isReady && videoLeft.isReady)
-		init();
-}
-
 function moveTo(percent)
 {
 	videoLeft.setWidth(percent + "%");

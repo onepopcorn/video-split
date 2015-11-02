@@ -1,6 +1,6 @@
 'use strict';
 
-const BUFFER_THRESHOLD =  0.075;
+const BUFFER_PRELOAD_THRESHOLD =  0.075; // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
 let utils = require('./utils');
 
 class VideoItem
@@ -22,11 +22,8 @@ class VideoItem
 		// This is called when vimeo player is ready
 		function _onReady(item){
 			self.player.removeEvent('ready');
+			self.player.api('setLoop',true);
 			self.preload(preloader);
-			
-			// self.player.addEvent('finish',function(){
-			// 	console.log("video finished");
-			// });
 		}
 	}
 	/*
@@ -64,14 +61,16 @@ class VideoItem
 
 		// This hold preloader 'til videos have enough loaded buffer to play in sync
 		this.player.addEvent('loadProgress',function(e){
-			let percent = e.percent * 100 / BUFFER_THRESHOLD;
-			preloader.setProgress(percent,self.id);	
-			
-			if(e.percent > BUFFER_THRESHOLD && !self.isReady)
+			if(!self.isReady)
 			{
-				self.isReady = true;
-				self.player.removeEvent('loadProgress');
-			}	
+				
+				let percent = e.percent * 100 / BUFFER_PRELOAD_THRESHOLD;
+				preloader.setProgress(percent,self.id);	
+
+				if(e.percent > BUFFER_PRELOAD_THRESHOLD)
+					self.isReady = true;
+			}
+			console.log(e);
 		});
 	}
 }

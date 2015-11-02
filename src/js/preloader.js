@@ -9,6 +9,7 @@ class Preloader
 	/*
      * @param {String} ID of div element that wraps all preloader elements
      * @param {String} ID of div where percentage info will be shown
+     * @param {Function} Function to call when everything is ready to play
 	 */
 	constructor(id,infoID,startCallback)
 	{
@@ -26,7 +27,8 @@ class Preloader
 		this.element.className = "fadeout";
 	}
 	/*
-	 * Method that updates loading progress percentage
+	 * Method that updates loading progress percentage. 
+	 * NOTE: Because it's based on Vimeo's buffer (this value changes for each video) it's not precise, hence the forced 100% value... Sorry about that.
 	 */
 	setProgress(percent,target){
 		this[target] = percent;
