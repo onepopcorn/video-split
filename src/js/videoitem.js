@@ -5,10 +5,10 @@ let utils = require('./utils');
 let lastElapsedTime = 0;
 
 let STATE = {
-	'buffering':-2,
-	'stopped':-1,
-	'paused':0,
-	'playing':1
+	'BUFFERING':-2,
+	'STOPPED':-1,
+	'PAUSED':0,
+	'PLAYING':1
 }
 
 class VideoItem
@@ -52,10 +52,10 @@ class VideoItem
 	 * Method to update the video state check. 
 	 */
 	update(){
-		if(this.elapsed - lastElapsedTime !== 0 && this.state !== 'playing')
-			this.state = 'playing';
-		else if(this.state !== 'buffering') {
-			this.state = 'buffering';
+		if(this.elapsed - lastElapsedTime !== 0 && this.state !== STATE.PLAYING)
+			this.state = STATE.PLAYING;
+		else if(this.state !== STATE.BUFFERING && !== STATE.PAUSED && !== STATE.STOPPED) {
+			this.state = STATE.BUFFERING;
 		}
 
 		console.log(this.id,this.elapsed - lastElapsedTime, this.state);
