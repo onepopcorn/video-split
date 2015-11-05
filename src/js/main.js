@@ -1,6 +1,7 @@
 'use strict';
 
 require('vimeo-froogaloop');
+require('./rAF');
 let Video = require('./videoitem');
 let Preloader = require('./preloader');
 let Overlay = require('./overlay');
@@ -9,11 +10,11 @@ let preloader = new Preloader('preloader','status',init);
 let videoRight = new Video('video-wrapper-right',preloader);
 let videoLeft = new Video('video-wrapper-left',preloader);
 let overlay = new Overlay('overlay','message');
-
 let container = document.getElementById('container');
 
 let isDown = false;
-let isPlaying = false;
+let syncing = false;
+let hasStarted = false;
 let pointerOffset = 0;
 
 function init(){		
@@ -22,9 +23,25 @@ function init(){
 }
 
 function play(){
-	videoRight.play();
 	videoLeft.play();
+	videoRight.play();
 	overlay.hideMessage();
+	hasStarted = true;
+}
+
+let prevTimes = {'video1':0,'video2':0};
+setInterval(function(){
+	videoLeft.update();
+	videoRight.update();
+
+},250);
+
+function syncVideos(){
+	let targetTime = Math.min(videoLeft.elapsed,videoRight.elapsed);
+	
+	// videoLeft.setTime(targetTime);
+	// videoRight.setTime(targetTime);
+	// syncing = false;
 }
 
 function moveTo(percent)
@@ -39,9 +56,9 @@ function moveTo(percent)
 
 overlay.element.addEventListener('mousedown',function(event){
 	isDown = true
-	// This is used to move the soverlay keeping the offset mouse position and preventing a quick jump when mousemove.
+	// This is used to move the overlay keeping the offset mouse position and preventing a quick jump when mousemove event is fired.
 	pointerOffset = 100 * event.pageX / window.innerWidth - overlay.position;
-	if(!isPlaying)
+	if(!hasStarted)
 		play();
 });
 

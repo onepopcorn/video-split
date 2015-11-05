@@ -1,25 +1,753 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-"use strict";var Froogaloop=function(){function t(n){return new t.fn.init(n)}function n(t,n,e){if(!e.contentWindow.postMessage)return!1;var r=e.getAttribute("src").split("?")[0],i=JSON.stringify({method:t,value:n});"//"===r.substr(0,2)&&(r=window.location.protocol+r),e.contentWindow.postMessage(i,r)}function e(t){var n,e;try{n=JSON.parse(t.data),e=n.event||n.method}catch(r){}if("ready"!=e||s||(s=!0),t.origin!=d)return!1;var o=n.value,l=n.data,u=""===u?null:n.player_id,a=i(e,u),c=[];return a?(void 0!==o&&c.push(o),l&&c.push(l),u&&c.push(u),c.length>0?a.apply(null,c):a.call()):!1}function r(t,n,e){e?(a[e]||(a[e]={}),a[e][t]=n):a[t]=n}function i(t,n){return n?a[n][t]:a[t]}function o(t,n){if(n&&a[n]){if(!a[n][t])return!1;a[n][t]=null}else{if(!a[t])return!1;a[t]=null}return!0}function l(t){"//"===t.substr(0,2)&&(t=window.location.protocol+t);for(var n=t.split("/"),e="",r=0,i=n.length;i>r&&3>r;r++)e+=n[r],2>r&&(e+="/");return e}function u(t){return!!(t&&t.constructor&&t.call&&t.apply)}var a={},s=!1,d=(Array.prototype.slice,"");return t.fn=t.prototype={element:null,init:function(t){return"string"==typeof t&&(t=document.getElementById(t)),this.element=t,d=l(this.element.getAttribute("src")),this},api:function(t,e){if(!this.element||!t)return!1;var i=this,o=i.element,l=""!==o.id?o.id:null,a=u(e)?null:e,s=u(e)?e:null;return s&&r(t,s,l),n(t,a,o),i},addEvent:function(t,e){if(!this.element)return!1;var i=this,o=i.element,l=""!==o.id?o.id:null;return r(t,e,l),"ready"!=t?n("addEventListener",t,o):"ready"==t&&s&&e.call(null,l),i},removeEvent:function(t){if(!this.element)return!1;var e=this,r=e.element,i=""!==r.id?r.id:null,l=o(t,i);"ready"!=t&&l&&n("removeEventListener",t,r)}},t.fn.init.prototype=t.fn,window.addEventListener?window.addEventListener("message",e,!1):window.attachEvent("onmessage",e),window.Froogaloop=window.$f=t}();
+// Init style shamelessly stolen from jQuery http://jquery.com
+'use strict';
 
+var Froogaloop = (function () {
+    // Define a local copy of Froogaloop
+    function Froogaloop(iframe) {
+        // The Froogaloop object is actually just the init constructor
+        return new Froogaloop.fn.init(iframe);
+    }
+
+    var eventCallbacks = {},
+        hasWindowEvent = false,
+        isReady = false,
+        slice = Array.prototype.slice,
+        playerDomain = '';
+
+    Froogaloop.fn = Froogaloop.prototype = {
+        element: null,
+
+        init: function init(iframe) {
+            if (typeof iframe === "string") {
+                iframe = document.getElementById(iframe);
+            }
+
+            this.element = iframe;
+
+            // Register message event listeners
+            playerDomain = getDomainFromUrl(this.element.getAttribute('src'));
+
+            return this;
+        },
+
+        /*
+         * Calls a function to act upon the player.
+         *
+         * @param {string} method The name of the Javascript API method to call. Eg: 'play'.
+         * @param {Array|Function} valueOrCallback params Array of parameters to pass when calling an API method
+         *                                or callback function when the method returns a value.
+         */
+        api: function api(method, valueOrCallback) {
+            if (!this.element || !method) {
+                return false;
+            }
+
+            var self = this,
+                element = self.element,
+                target_id = element.id !== '' ? element.id : null,
+                params = !isFunction(valueOrCallback) ? valueOrCallback : null,
+                callback = isFunction(valueOrCallback) ? valueOrCallback : null;
+
+            // Store the callback for get functions
+            if (callback) {
+                storeCallback(method, callback, target_id);
+            }
+
+            postMessage(method, params, element);
+            return self;
+        },
+
+        /*
+         * Registers an event listener and a callback function that gets called when the event fires.
+         *
+         * @param eventName (String): Name of the event to listen for.
+         * @param callback (Function): Function that should be called when the event fires.
+         */
+        addEvent: function addEvent(eventName, callback) {
+            if (!this.element) {
+                return false;
+            }
+
+            var self = this,
+                element = self.element,
+                target_id = element.id !== '' ? element.id : null;
+
+            storeCallback(eventName, callback, target_id);
+
+            // The ready event is not registered via postMessage. It fires regardless.
+            if (eventName != 'ready') {
+                postMessage('addEventListener', eventName, element);
+            } else if (eventName == 'ready' && isReady) {
+                callback.call(null, target_id);
+            }
+
+            return self;
+        },
+
+        /*
+         * Unregisters an event listener that gets called when the event fires.
+         *
+         * @param eventName (String): Name of the event to stop listening for.
+         */
+        removeEvent: function removeEvent(eventName) {
+            if (!this.element) {
+                return false;
+            }
+
+            var self = this,
+                element = self.element,
+                target_id = element.id !== '' ? element.id : null,
+                removed = removeCallback(eventName, target_id);
+
+            // The ready event is not registered
+            if (eventName != 'ready' && removed) {
+                postMessage('removeEventListener', eventName, element);
+            }
+        }
+    };
+
+    /**
+     * Handles posting a message to the parent window.
+     *
+     * @param method (String): name of the method to call inside the player. For api calls
+     * this is the name of the api method (api_play or api_pause) while for events this method
+     * is api_addEventListener.
+     * @param params (Object or Array): List of parameters to submit to the method. Can be either
+     * a single param or an array list of parameters.
+     * @param target (HTMLElement): Target iframe to post the message to.
+     */
+    function postMessage(method, params, target) {
+        if (!target.contentWindow.postMessage) {
+            return false;
+        }
+
+        var url = target.getAttribute('src').split('?')[0],
+            data = JSON.stringify({
+            method: method,
+            value: params
+        });
+
+        if (url.substr(0, 2) === '//') {
+            url = window.location.protocol + url;
+        }
+
+        target.contentWindow.postMessage(data, url);
+    }
+
+    /**
+     * Event that fires whenever the window receives a message from its parent
+     * via window.postMessage.
+     */
+    function onMessageReceived(event) {
+        var data, method;
+
+        try {
+            data = JSON.parse(event.data);
+            method = data.event || data.method;
+        } catch (e) {
+            //fail silently... like a ninja!
+        }
+
+        if (method == 'ready' && !isReady) {
+            isReady = true;
+        }
+
+        // Handles messages from moogaloop only
+        if (event.origin != playerDomain) {
+            return false;
+        }
+
+        var value = data.value,
+            eventData = data.data,
+            target_id = target_id === '' ? null : data.player_id,
+            callback = getCallback(method, target_id),
+            params = [];
+
+        if (!callback) {
+            return false;
+        }
+
+        if (value !== undefined) {
+            params.push(value);
+        }
+
+        if (eventData) {
+            params.push(eventData);
+        }
+
+        if (target_id) {
+            params.push(target_id);
+        }
+
+        return params.length > 0 ? callback.apply(null, params) : callback.call();
+    }
+
+    /**
+     * Stores submitted callbacks for each iframe being tracked and each
+     * event for that iframe.
+     *
+     * @param eventName (String): Name of the event. Eg. api_onPlay
+     * @param callback (Function): Function that should get executed when the
+     * event is fired.
+     * @param target_id (String) [Optional]: If handling more than one iframe then
+     * it stores the different callbacks for different iframes based on the iframe's
+     * id.
+     */
+    function storeCallback(eventName, callback, target_id) {
+        if (target_id) {
+            if (!eventCallbacks[target_id]) {
+                eventCallbacks[target_id] = {};
+            }
+            eventCallbacks[target_id][eventName] = callback;
+        } else {
+            eventCallbacks[eventName] = callback;
+        }
+    }
+
+    /**
+     * Retrieves stored callbacks.
+     */
+    function getCallback(eventName, target_id) {
+        if (target_id) {
+            return eventCallbacks[target_id][eventName];
+        } else {
+            return eventCallbacks[eventName];
+        }
+    }
+
+    function removeCallback(eventName, target_id) {
+        if (target_id && eventCallbacks[target_id]) {
+            if (!eventCallbacks[target_id][eventName]) {
+                return false;
+            }
+            eventCallbacks[target_id][eventName] = null;
+        } else {
+            if (!eventCallbacks[eventName]) {
+                return false;
+            }
+            eventCallbacks[eventName] = null;
+        }
+
+        return true;
+    }
+
+    /**
+     * Returns a domain's root domain.
+     * Eg. returns http://vimeo.com when http://vimeo.com/channels is sbumitted
+     *
+     * @param url (String): Url to test against.
+     * @return url (String): Root domain of submitted url
+     */
+    function getDomainFromUrl(url) {
+        if (url.substr(0, 2) === '//') {
+            url = window.location.protocol + url;
+        }
+
+        var url_pieces = url.split('/'),
+            domain_str = '';
+
+        for (var i = 0, length = url_pieces.length; i < length; i++) {
+            if (i < 3) {
+                domain_str += url_pieces[i];
+            } else {
+                break;
+            }
+            if (i < 2) {
+                domain_str += '/';
+            }
+        }
+
+        return domain_str;
+    }
+
+    function isFunction(obj) {
+        return !!(obj && obj.constructor && obj.call && obj.apply);
+    }
+
+    function isArray(obj) {
+        return toString.call(obj) === '[object Array]';
+    }
+
+    // Give the init function the Froogaloop prototype for later instantiation
+    Froogaloop.fn.init.prototype = Froogaloop.fn;
+
+    // Listens for the message event.
+    // W3C
+    if (window.addEventListener) {
+        window.addEventListener('message', onMessageReceived, false);
+    }
+    // IE
+    else {
+            window.attachEvent('onmessage', onMessageReceived);
+        }
+
+    // Expose froogaloop to the global object
+    return window.Froogaloop = window.$f = Froogaloop;
+})();
 
 },{}],2:[function(require,module,exports){
-"use strict";function init(){moveTo(50),document.getElementById("container").className="fadein"}function play(){videoRight.play(),videoLeft.play(),overlay.hideMessage()}function moveTo(e){videoLeft.setWidth(e+"%"),overlay.setPosition(e),videoLeft.setVolume(e+pointerOffset),videoRight.setVolume(100-e+pointerOffset)}function onmousemove(e){if(isDown){var o=100*e.pageX/window.innerWidth;moveTo(o-pointerOffset)}}require("vimeo-froogaloop");var Video=require("./videoitem"),Preloader=require("./preloader"),Overlay=require("./overlay"),preloader=new Preloader("preloader","status",init),videoRight=new Video("video-wrapper-right",preloader),videoLeft=new Video("video-wrapper-left",preloader),overlay=new Overlay("overlay","message"),container=document.getElementById("container"),isDown=!1,isPlaying=!1,pointerOffset=0;overlay.element.addEventListener("mousedown",function(e){isDown=!0,pointerOffset=100*e.pageX/window.innerWidth-overlay.position,isPlaying||play()}),overlay.element.addEventListener("mouseup",function(){isDown=!1}),container.addEventListener("mousemove",onmousemove);
+'use strict';
 
+require('vimeo-froogaloop');
+require('./rAF');
+var Video = require('./videoitem');
+var Preloader = require('./preloader');
+var Overlay = require('./overlay');
 
-},{"./overlay":3,"./preloader":4,"./videoitem":6,"vimeo-froogaloop":1}],3:[function(require,module,exports){
-"use strict";function _classCallCheck(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}var _createClass=function(){function e(e,t){for(var s=0;s<t.length;s++){var n=t[s];n.enumerable=n.enumerable||!1,n.configurable=!0,"value"in n&&(n.writable=!0),Object.defineProperty(e,n.key,n)}}return function(t,s,n){return s&&e(t.prototype,s),n&&e(t,n),t}}(),Overlay=function(){function e(t,s){_classCallCheck(this,e),this.element=document.getElementById(t),this.message=document.getElementById(s),this.position=0}return _createClass(e,[{key:"setPosition",value:function(e){this.position=e,this.element.style.left=e+"%"}},{key:"hideMessage",value:function(){this.message.className="fadeout"}},{key:"showMessage",value:function(){this.message.className=""}},{key:"setMessage",value:function(e){this.message.innerHTML=e}}]),e}();module.exports=Overlay;
+var preloader = new Preloader('preloader', 'status', init);
+var videoRight = new Video('video-wrapper-right', preloader);
+var videoLeft = new Video('video-wrapper-left', preloader);
+var overlay = new Overlay('overlay', 'message');
+var container = document.getElementById('container');
 
+var isDown = false;
+var syncing = false;
+var hasStarted = false;
+var pointerOffset = 0;
+
+function init() {
+	moveTo(50);
+	document.getElementById('container').className = "fadein";
+}
+
+function play() {
+	videoLeft.play();
+	videoRight.play();
+	overlay.hideMessage();
+	hasStarted = true;
+}
+
+var prevTimes = { 'video1': 0, 'video2': 0 };
+setInterval(function () {
+	videoLeft.update();
+	videoRight.update();
+}, 250);
+
+function syncVideos() {
+	var targetTime = Math.min(videoLeft.elapsed, videoRight.elapsed);
+
+	// videoLeft.setTime(targetTime);
+	// videoRight.setTime(targetTime);
+	// syncing = false;
+}
+
+function moveTo(percent) {
+	videoLeft.setWidth(percent + "%");
+	overlay.setPosition(percent);
+
+	videoLeft.setVolume(percent + pointerOffset);
+	videoRight.setVolume(100 - percent + pointerOffset);
+}
+
+overlay.element.addEventListener('mousedown', function (event) {
+	isDown = true;
+	// This is used to move the overlay keeping the offset mouse position and preventing a quick jump when mousemove event is fired.
+	pointerOffset = 100 * event.pageX / window.innerWidth - overlay.position;
+	if (!hasStarted) play();
+});
+
+overlay.element.addEventListener('mouseup', function () {
+	isDown = false;
+});
+
+function onmousemove(event) {
+	if (isDown) {
+		var percent = 100 * event.pageX / window.innerWidth;
+		moveTo(percent - pointerOffset);
+	}
+}
+container.addEventListener('mousemove', onmousemove);
+
+},{"./overlay":3,"./preloader":4,"./rAF":5,"./videoitem":7,"vimeo-froogaloop":1}],3:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+var Overlay = (function () {
+	/*
+  * @param {String} ID of div where overlay elements are
+  * @param {String} ID of div where all messages are gona be
+  */
+
+	function Overlay(overlayID, messageID) {
+		_classCallCheck(this, Overlay);
+
+		this.element = document.getElementById(overlayID);
+		this.message = document.getElementById(messageID);
+		this.position = 0;
+	}
+
+	/*
+  * @param {Number} Percent where split indicator must be
+  */
+
+	_createClass(Overlay, [{
+		key: 'setPosition',
+		value: function setPosition(value) {
+			this.position = value;
+			this.element.style.left = value + "%";
+		}
+
+		/*
+   *  This method just hides the message div
+   */
+	}, {
+		key: 'hideMessage',
+		value: function hideMessage() {
+			this.message.className = 'fadeout';
+		}
+
+		/*
+   * This methods just shows previous hidded message div
+   */
+	}, {
+		key: 'showMessage',
+		value: function showMessage() {
+			this.message.className = '';
+		}
+
+		/*
+   * @param {String} Message to show on message div
+   */
+	}, {
+		key: 'setMessage',
+		value: function setMessage(msg) {
+			this.message.innerHTML = msg;
+		}
+	}]);
+
+	return Overlay;
+})();
+
+module.exports = Overlay;
 
 },{}],4:[function(require,module,exports){
-"use strict";"user strict";function _classCallCheck(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}var _createClass=function(){function e(e,t){for(var n=0;n<t.length;n++){var s=t[n];s.enumerable=s.enumerable||!1,s.configurable=!0,"value"in s&&(s.writable=!0),Object.defineProperty(e,s.key,s)}}return function(t,n,s){return n&&e(t.prototype,n),s&&e(t,s),t}}(),video1=Symbol(),video2=Symbol(),Preloader=function(){function e(t,n,s){_classCallCheck(this,e),this.element=document.getElementById(t),this.status=document.getElementById(n),this.callback=s,this.video1=0,this.video2=0}return _createClass(e,[{key:"fadeout",value:function(){this.element.className="fadeout"}},{key:"setProgress",value:function(e,t){this[t]=e;var n=Math.floor(.5*(this.video1+this.video2));this.status.innerHTML=n+"%",n>=100&&(this.callback(),this.fadeout(),this.status.innerHTML="100%")}}]),e}();module.exports=Preloader;
+'use strict';
 
+'user strict';
+
+// Private properties
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+var video1 = Symbol();
+var video2 = Symbol();
+
+var Preloader = (function () {
+	/*
+     * @param id {String} ID of div element that wraps all preloader elements
+     * @param infoID {String} ID of div where percentage info will be shown
+     * @param startCallback {Function} Function to call when everything is ready to play
+  */
+
+	function Preloader(id, infoID, startCallback) {
+		_classCallCheck(this, Preloader);
+
+		this.element = document.getElementById(id);
+		this.status = document.getElementById(infoID);
+		this.callback = startCallback;
+
+		this['video1'] = 0;
+		this['video2'] = 0;
+	}
+
+	/*
+  * Method that hides the whole preloader
+  */
+
+	_createClass(Preloader, [{
+		key: 'fadeout',
+		value: function fadeout() {
+			this.element.className = "fadeout";
+		}
+
+		/*
+   * Method that updates loading progress percentage. Percentage is divided by 2 because there's 2 videos.
+   * NOTE: Because it's based on Vimeo's buffer (this value changes for each video) it's not precise, hence the forced 100% value... Sorry about that.
+   * @param percent {Number} Value that represents percent of buffered against max buffer value (See note above)
+   * @param target {String} ID of video item calling this method.
+   */
+	}, {
+		key: 'setProgress',
+		value: function setProgress(percent, target) {
+			this[target] = percent;
+			var value = Math.floor((this['video1'] + this['video2']) * 0.5);
+			this.status.innerHTML = value + "%";
+
+			if (value >= 100) {
+				this.callback();
+				this.fadeout();
+				this.status.innerHTML = 100 + "%";
+			}
+		}
+	}]);
+
+	return Preloader;
+})();
+
+module.exports = Preloader;
 
 },{}],5:[function(require,module,exports){
-"use strict";function _classCallCheck(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}var _createClass=function(){function e(e,n){for(var t=0;t<n.length;t++){var r=n[t];r.enumerable=r.enumerable||!1,r.configurable=!0,"value"in r&&(r.writable=!0),Object.defineProperty(e,r.key,r)}}return function(n,t,r){return t&&e(n.prototype,t),r&&e(n,r),n}}(),Utils=function(){function e(){_classCallCheck(this,e)}return _createClass(e,null,[{key:"limitNormalizedValue",value:function(e){return 0>e?e=0:e>1&&(e=1),e}}]),e}();module.exports=Utils;
+'use strict';
 
+(function () {
+    var lastTime = 0,
+        vendors = ['ms', 'moz', 'webkit', 'o'],
+
+    // Feature check for performance (high-resolution timers)
+    hasPerformance = !!(window.performance && window.performance.now);
+
+    for (var x = 0, max = vendors.length; x < max && !window.requestAnimationFrame; x += 1) {
+        window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame'];
+        window.cancelAnimationFrame = window[vendors[x] + 'CancelAnimationFrame'] || window[vendors[x] + 'CancelRequestAnimationFrame'];
+    }
+
+    if (!window.requestAnimationFrame) {
+        console.log('Polyfill');
+        window.requestAnimationFrame = function (callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function () {
+                callback(currTime + timeToCall);
+            }, timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+    }
+
+    if (!window.cancelAnimationFrame) {
+        window.cancelAnimationFrame = function (id) {
+            clearTimeout(id);
+        };
+    }
+
+    // Add new wrapper for browsers that don't have performance
+    if (!hasPerformance) {
+        console.log("Browser doesn't have performance");
+
+        // Store reference to existing rAF and initial startTime
+        var rAF = window.requestAnimationFrame,
+            startTime = +new Date();
+
+        // Override window rAF to include wrapped callback
+        window.requestAnimationFrame = function (callback, element) {
+            // Wrap the given callback to pass in performance timestamp
+            var wrapped = function wrapped(timestamp) {
+                // Get performance-style timestamp
+                var performanceTimestamp = timestamp < 1e12 ? timestamp : timestamp - startTime;
+
+                return callback(performanceTimestamp);
+            };
+
+            // Call original rAF with wrapped callback
+            rAF(wrapped, element);
+        };
+    }
+})();
 
 },{}],6:[function(require,module,exports){
-"use strict";function _classCallCheck(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}var _createClass=function(){function e(e,t){for(var a=0;a<t.length;a++){var i=t[a];i.enumerable=i.enumerable||!1,i.configurable=!0,"value"in i&&(i.writable=!0),Object.defineProperty(e,i.key,i)}}return function(t,a,i){return a&&e(t.prototype,a),i&&e(t,i),t}}(),BUFFER_PRELOAD_THRESHOLD=.075,utils=require("./utils"),VideoItem=function(){function e(t,a){function i(e){r.player.removeEvent("ready"),r.player.api("setLoop",!0),r.preload(a)}_classCallCheck(this,e),this.wrapper=document.getElementById(t),this.id=this.wrapper.getAttribute("data-id"),this.iframe=this.wrapper.getElementsByTagName("iframe")[0],this.player=$f(this.iframe),this.player.addEvent("ready",i),this.isReady=!1;var r=this}return _createClass(e,[{key:"play",value:function(){this.player.api("play")}},{key:"setVolume",value:function(e){this.player.api("setVolume",utils.limitNormalizedValue(e/100))}},{key:"setWidth",value:function(e){this.wrapper.style.width=e}},{key:"preload",value:function(e){var t=this;this.player.addEvent("play",function(){t.player.api("pause"),t.player.api("seekTo",0),t.player.removeEvent("play")}),this.player.api("play"),this.player.addEvent("loadProgress",function(a){if(!t.isReady){var i=100*a.percent/BUFFER_PRELOAD_THRESHOLD;e.setProgress(i,t.id),a.percent>BUFFER_PRELOAD_THRESHOLD&&(t.isReady=!0)}console.log(a)})}}]),e}();module.exports=VideoItem;
+'use strict';
 
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-},{"./utils":5}]},{},[2])
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+var Utils = (function () {
+	function Utils() {
+		_classCallCheck(this, Utils);
+	}
+
+	_createClass(Utils, null, [{
+		key: 'limitNormalizedValue',
+		value: function limitNormalizedValue(value) {
+			if (value < 0) {
+				value = 0;
+			} else if (value > 1) {
+				value = 1;
+			}
+			return value;
+		}
+	}]);
+
+	return Utils;
+})();
+
+module.exports = Utils;
+
+},{}],7:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+var BUFFER_PRELOAD_THRESHOLD = 0.075; // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
+var utils = require('./utils');
+var lastElapsedTime = 0;
+
+var STATE = {
+	'buffering': -2,
+	'stopped': -1,
+	'paused': 0,
+	'playing': 1
+};
+
+var VideoItem = (function () {
+	/*
+  * @param id {String} ID of div element that holds Vimeo's iframe
+  * @param preloader {Class} Preloader class to handle video loading process
+  */
+
+	function VideoItem(id, preloader) {
+		_classCallCheck(this, VideoItem);
+
+		this.wrapper = document.getElementById(id);
+		this.id = this.wrapper.getAttribute("data-id");
+		this.iframe = this.wrapper.getElementsByTagName('iframe')[0];
+		this.player = $f(this.iframe);
+		this.player.addEvent('ready', _onReady.bind(this));
+		this.isReady = false;
+		this.isBuffering = false;
+		this.state = null;
+		this.elapsed = 0;
+
+		// This is called when vimeo player is ready
+		function _onReady(item) {
+			this.player.removeEvent('ready');
+			this.player.api('setLoop', true);
+			this.preload(preloader);
+			this.player.addEvent('playProgress', _onPlayback.bind(this));
+		}
+
+		function _onPlayback(e) {
+			this.elapsed = e.seconds;
+			// console.log(this.id,e.seconds);
+		}
+	}
+
+	/*
+  * A simple method to call play to Vimeo's player
+  */
+
+	_createClass(VideoItem, [{
+		key: 'play',
+		value: function play() {
+			this.player.api('play');
+		}
+
+		/*
+   * Method to update the video state check. 
+   */
+	}, {
+		key: 'update',
+		value: function update() {
+			if (this.elapsed - lastElapsedTime !== 0 && this.state !== 'playing') this.state = 'playing';else if (this.state !== 'buffering') {
+				this.state = 'buffering';
+			}
+
+			console.log(this.id, this.elapsed - lastElapsedTime, this.state);
+			lastElapsedTime = this.elapsed;
+		}
+
+		/*
+   * @param value {Number} Volume value for video normalized (from 0 to 1)
+   */
+	}, {
+		key: 'setVolume',
+		value: function setVolume(value) {
+			this.player.api('setVolume', utils.limitNormalizedValue(value / 100));
+		}
+
+		/*
+   * @param value {String} Method to set the iframe width value. Value must be suplied with units in a String format (for instance "40px" pr "40%")
+   */
+	}, {
+		key: 'setWidth',
+		value: function setWidth(value) {
+			this.wrapper.style.width = value;
+		}
+
+		/*
+   * @param preloader {Class} Method to force Vimeo's videos to buffer before activate user interaction. This is to start videos in sync as much as possible
+   */
+	}, {
+		key: 'preload',
+		value: function preload(preloader) {
+			// This forces players to start buffering
+			function _onPlayProgress() {
+				this.player.api('pause');
+				this.player.api('seekTo', 0);
+				this.player.removeEvent('play');
+			}
+			this.player.addEvent('play', _onPlayProgress.bind(this));
+			this.player.api('play');
+
+			// This hold preloader 'til videos have enough loaded buffer to play in sync
+			function _onBufferFinish() {
+				this.isReady = true;
+			}
+
+			function _onBufferProgress(e) {
+				var percent = e.percent * 100 / BUFFER_PRELOAD_THRESHOLD;
+				preloader.setProgress(percent, this.id);
+			}
+			this.buffer(_onBufferFinish.bind(this), _onBufferProgress.bind(this));
+		}
+
+		/*
+   * This method handles the buffering progress and state
+   * @param callback {Function} Function to be called when 
+   * @param progressCallback {Function}
+   */
+	}, {
+		key: 'buffer',
+		value: function buffer(callback, progressCallback) {
+			function _onLoadProgress(e) {
+				if (typeof progressCallback === 'function') progressCallback(e);
+
+				if (e.percent > BUFFER_PRELOAD_THRESHOLD) {
+					this.player.removeEvent('loadProgress');
+					if (typeof callback === 'function') callback();
+				}
+			}
+			this.player.addEvent('loadProgress', _onLoadProgress.bind(this));
+		}
+
+		/*
+   * This methods returns elapsed time
+   */
+	}, {
+		key: 'getTime',
+		value: function getTime() {
+			return this.elapsed;
+		}
+
+		/*
+   * This method moves playhead to specified value.
+   * @param value {Number} Value where the playhead must go in seconds
+   */
+	}, {
+		key: 'setTime',
+		value: function setTime(value) {
+			this.player.api('pause');
+			this.player.api('seekTo', value);
+			this.elapsed = value;
+			this.isReady = false;
+
+			this.buffer((function () {
+				console.log("READY TO PLAY AGAIN");
+			}).bind(this));
+		}
+	}]);
+
+	return VideoItem;
+})();
+
+module.exports = VideoItem;
+
+},{"./utils":6}]},{},[2])
