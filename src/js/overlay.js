@@ -1,6 +1,6 @@
 'use strict';
 
-class Overlay {
+export default class Overlay {
 	/*
 	 * @param {String} ID of div where overlay elements are
 	 * @param {String} ID of div where all messages are gona be
@@ -37,5 +37,3 @@ class Overlay {
 		this.message.innerHTML = msg;
 	}
 }
-
-module.exports = Overlay;

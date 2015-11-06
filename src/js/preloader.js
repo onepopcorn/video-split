@@ -4,7 +4,7 @@
 let video1 = Symbol(); 
 let video2 = Symbol();
 
-class Preloader 
+export default class Preloader 
 {
 	/*
      * @param id {String} ID of div element that wraps all preloader elements
@@ -46,5 +46,3 @@ class Preloader
 	}
 
 }
-
-module.exports = Preloader;

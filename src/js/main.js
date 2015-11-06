@@ -1,10 +1,10 @@
 'use strict';
 
-require('vimeo-froogaloop');
-require('./rAF');
-let Video = require('./videoitem');
-let Preloader = require('./preloader');
-let Overlay = require('./overlay');
+// require('vimeo-froogaloop');
+import Froogaloop from 'vimeo-froogaloop';
+import Video from './videoitem';
+import Preloader from './preloader';
+import Overlay from './overlay';
 
 let preloader = new Preloader('preloader','status',init);
 let videoRight = new Video('video-wrapper-right',preloader);
@@ -29,11 +29,11 @@ function play(){
 	hasStarted = true;
 }
 
-let prevTimes = {'video1':0,'video2':0};
+
 setInterval(function(){
 	videoLeft.update();
 	videoRight.update();
-
+	console.log(videoLeft.state, "|" ,videoRight.state);
 },250);
 
 function syncVideos(){

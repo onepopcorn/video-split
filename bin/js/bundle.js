@@ -289,16 +289,30 @@ var Froogaloop = (function () {
 },{}],2:[function(require,module,exports){
 'use strict';
 
-require('vimeo-froogaloop');
-require('./rAF');
-var Video = require('./videoitem');
-var Preloader = require('./preloader');
-var Overlay = require('./overlay');
+// require('vimeo-froogaloop');
 
-var preloader = new Preloader('preloader', 'status', init);
-var videoRight = new Video('video-wrapper-right', preloader);
-var videoLeft = new Video('video-wrapper-left', preloader);
-var overlay = new Overlay('overlay', 'message');
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _vimeoFroogaloop = require('vimeo-froogaloop');
+
+var _vimeoFroogaloop2 = _interopRequireDefault(_vimeoFroogaloop);
+
+var _videoitem = require('./videoitem');
+
+var _videoitem2 = _interopRequireDefault(_videoitem);
+
+var _preloader = require('./preloader');
+
+var _preloader2 = _interopRequireDefault(_preloader);
+
+var _overlay = require('./overlay');
+
+var _overlay2 = _interopRequireDefault(_overlay);
+
+var preloader = new _preloader2['default']('preloader', 'status', init);
+var videoRight = new _videoitem2['default']('video-wrapper-right', preloader);
+var videoLeft = new _videoitem2['default']('video-wrapper-left', preloader);
+var overlay = new _overlay2['default']('overlay', 'message');
 var container = document.getElementById('container');
 
 var isDown = false;
@@ -318,10 +332,10 @@ function play() {
 	hasStarted = true;
 }
 
-var prevTimes = { 'video1': 0, 'video2': 0 };
 setInterval(function () {
 	videoLeft.update();
 	videoRight.update();
+	console.log(videoLeft.state, "|", videoRight.state);
 }, 250);
 
 function syncVideos() {
@@ -359,8 +373,12 @@ function onmousemove(event) {
 }
 container.addEventListener('mousemove', onmousemove);
 
-},{"./overlay":3,"./preloader":4,"./rAF":5,"./videoitem":7,"vimeo-froogaloop":1}],3:[function(require,module,exports){
+},{"./overlay":3,"./preloader":4,"./videoitem":6,"vimeo-froogaloop":1}],3:[function(require,module,exports){
 'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+	value: true
+});
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
@@ -422,7 +440,8 @@ var Overlay = (function () {
 	return Overlay;
 })();
 
-module.exports = Overlay;
+exports['default'] = Overlay;
+module.exports = exports['default'];
 
 },{}],4:[function(require,module,exports){
 'use strict';
@@ -430,6 +449,9 @@ module.exports = Overlay;
 'user strict';
 
 // Private properties
+Object.defineProperty(exports, '__esModule', {
+	value: true
+});
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
@@ -490,111 +512,66 @@ var Preloader = (function () {
 	return Preloader;
 })();
 
-module.exports = Preloader;
+exports['default'] = Preloader;
+module.exports = exports['default'];
 
 },{}],5:[function(require,module,exports){
 'use strict';
 
-(function () {
-    var lastTime = 0,
-        vendors = ['ms', 'moz', 'webkit', 'o'],
+function limitNormalizedValue(value) {
+	if (value < 0) {
+		value = 0;
+	} else if (value > 1) {
+		value = 1;
+	}
+	return value;
+}
 
-    // Feature check for performance (high-resolution timers)
-    hasPerformance = !!(window.performance && window.performance.now);
+module.exports = {
+	limitNormalizedValue: limitNormalizedValue
+};
 
-    for (var x = 0, max = vendors.length; x < max && !window.requestAnimationFrame; x += 1) {
-        window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame'];
-        window.cancelAnimationFrame = window[vendors[x] + 'CancelAnimationFrame'] || window[vendors[x] + 'CancelRequestAnimationFrame'];
-    }
+// export default class Utils
+// {
+// 	constructor(){}
+// 	static limitNormalizedValue(value)
+// 	{
+// 		if (value < 0){
+// 			value = 0;
+// 		} else if(value > 1){
+// 			value = 1;
+// 		}
+// 		return value;
+// 	}
 
-    if (!window.requestAnimationFrame) {
-        console.log('Polyfill');
-        window.requestAnimationFrame = function (callback, element) {
-            var currTime = new Date().getTime();
-            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-            var id = window.setTimeout(function () {
-                callback(currTime + timeToCall);
-            }, timeToCall);
-            lastTime = currTime + timeToCall;
-            return id;
-        };
-    }
+// 	static testFunc()
+// 	{
+// 		console.log("testFunc");
+// 	}
+// }
 
-    if (!window.cancelAnimationFrame) {
-        window.cancelAnimationFrame = function (id) {
-            clearTimeout(id);
-        };
-    }
-
-    // Add new wrapper for browsers that don't have performance
-    if (!hasPerformance) {
-        console.log("Browser doesn't have performance");
-
-        // Store reference to existing rAF and initial startTime
-        var rAF = window.requestAnimationFrame,
-            startTime = +new Date();
-
-        // Override window rAF to include wrapped callback
-        window.requestAnimationFrame = function (callback, element) {
-            // Wrap the given callback to pass in performance timestamp
-            var wrapped = function wrapped(timestamp) {
-                // Get performance-style timestamp
-                var performanceTimestamp = timestamp < 1e12 ? timestamp : timestamp - startTime;
-
-                return callback(performanceTimestamp);
-            };
-
-            // Call original rAF with wrapped callback
-            rAF(wrapped, element);
-        };
-    }
-})();
+// module.exports = Utils;
 
 },{}],6:[function(require,module,exports){
 'use strict';
 
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-var Utils = (function () {
-	function Utils() {
-		_classCallCheck(this, Utils);
-	}
-
-	_createClass(Utils, null, [{
-		key: 'limitNormalizedValue',
-		value: function limitNormalizedValue(value) {
-			if (value < 0) {
-				value = 0;
-			} else if (value > 1) {
-				value = 1;
-			}
-			return value;
-		}
-	}]);
-
-	return Utils;
-})();
-
-module.exports = Utils;
-
-},{}],7:[function(require,module,exports){
-'use strict';
+Object.defineProperty(exports, '__esModule', {
+	value: true
+});
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 var BUFFER_PRELOAD_THRESHOLD = 0.075; // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
-var utils = require('./utils');
+var limitNormalizedValue = require('./utils').limitNormalizedValue;
 var lastElapsedTime = 0;
 
 var STATE = {
-	'buffering': -2,
-	'stopped': -1,
-	'paused': 0,
-	'playing': 1
+	'BUFFERING': 'buffering',
+	'PAUSED': 'paused',
+	'STOPPED': 'stopped',
+	'PLAYING': 'playing'
 };
 
 var VideoItem = (function () {
@@ -612,8 +589,7 @@ var VideoItem = (function () {
 		this.player = $f(this.iframe);
 		this.player.addEvent('ready', _onReady.bind(this));
 		this.isReady = false;
-		this.isBuffering = false;
-		this.state = null;
+		this.state = STATE.STOPPED;
 		this.elapsed = 0;
 
 		// This is called when vimeo player is ready
@@ -626,7 +602,6 @@ var VideoItem = (function () {
 
 		function _onPlayback(e) {
 			this.elapsed = e.seconds;
-			// console.log(this.id,e.seconds);
 		}
 	}
 
@@ -638,6 +613,7 @@ var VideoItem = (function () {
 		key: 'play',
 		value: function play() {
 			this.player.api('play');
+			this.state = STATE.PLAYING;
 		}
 
 		/*
@@ -646,11 +622,11 @@ var VideoItem = (function () {
 	}, {
 		key: 'update',
 		value: function update() {
-			if (this.elapsed - lastElapsedTime !== 0 && this.state !== 'playing') this.state = 'playing';else if (this.state !== 'buffering') {
-				this.state = 'buffering';
+			if (this.elapsed - lastElapsedTime !== 0) this.state = STATE.PLAYING;else if (this.state === STATE.PLAYING) {
+				this.state = STATE.BUFFERING;
 			}
 
-			console.log(this.id, this.elapsed - lastElapsedTime, this.state);
+			// console.log(this.id,this.elapsed - lastElapsedTime, this.state);
 			lastElapsedTime = this.elapsed;
 		}
 
@@ -660,7 +636,7 @@ var VideoItem = (function () {
 	}, {
 		key: 'setVolume',
 		value: function setVolume(value) {
-			this.player.api('setVolume', utils.limitNormalizedValue(value / 100));
+			this.player.api('setVolume', limitNormalizedValue(value / 100));
 		}
 
 		/*
@@ -748,6 +724,7 @@ var VideoItem = (function () {
 	return VideoItem;
 })();
 
-module.exports = VideoItem;
+exports['default'] = VideoItem;
+module.exports = exports['default'];
 
-},{"./utils":6}]},{},[2])
+},{"./utils":5}]},{},[2])

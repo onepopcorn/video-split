@@ -1,17 +1,17 @@
 'use strict';
 
 const BUFFER_PRELOAD_THRESHOLD =  0.075; // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
-let utils = require('./utils');
+let limitNormalizedValue = require('./utils').limitNormalizedValue;
 let lastElapsedTime = 0;
 
 let STATE = {
-	'BUFFERING':-2,
-	'STOPPED':-1,
-	'PAUSED':0,
-	'PLAYING':1
+	'BUFFERING':'buffering',
+	'PAUSED':'paused',
+	'STOPPED':'stopped',
+	'PLAYING':'playing'
 }
 
-class VideoItem
+export default class VideoItem
 {
 	/*
 	 * @param id {String} ID of div element that holds Vimeo's iframe
@@ -25,8 +25,7 @@ class VideoItem
 		this.player = $f(this.iframe);
 		this.player.addEvent('ready',_onReady.bind(this));
 		this.isReady = false;
-		this.isBuffering = false;
-		this.state = null;
+		this.state = STATE.STOPPED;
 		this.elapsed = 0;
 
 		// This is called when vimeo player is ready
@@ -39,7 +38,6 @@ class VideoItem
 
 		function _onPlayback(e){
 			this.elapsed = e.seconds;
-			// console.log(this.id,e.seconds);
 		}
 	}
 	/*
@@ -47,25 +45,26 @@ class VideoItem
 	 */
 	play(){
 		this.player.api('play');
+		this.state = STATE.PLAYING
 	}
 	/*
 	 * Method to update the video state check. 
 	 */
 	update(){
-		if(this.elapsed - lastElapsedTime !== 0 && this.state !== STATE.PLAYING)
+		if(this.elapsed - lastElapsedTime !== 0)
 			this.state = STATE.PLAYING;
-		else if(this.state !== STATE.BUFFERING && !== STATE.PAUSED && !== STATE.STOPPED) {
+		else if(this.state === STATE.PLAYING) {
 			this.state = STATE.BUFFERING;
 		}
 
-		console.log(this.id,this.elapsed - lastElapsedTime, this.state);
+		// console.log(this.id,this.elapsed - lastElapsedTime, this.state);
 		lastElapsedTime = this.elapsed;
 	}
 	/*
 	 * @param value {Number} Volume value for video normalized (from 0 to 1)
 	 */
 	setVolume(value){
-		this.player.api('setVolume',utils.limitNormalizedValue(value / 100));
+		this.player.api('setVolume',limitNormalizedValue(value / 100));
 	}
 	/*
 	 * @param value {String} Method to set the iframe width value. Value must be suplied with units in a String format (for instance "40px" pr "40%")
@@ -137,5 +136,3 @@ class VideoItem
 		}.bind(this));
 	}
 }
-
-module.exports = VideoItem;

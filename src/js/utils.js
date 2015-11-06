@@ -1,17 +1,36 @@
 'use strict';
 
-class Utils 
+function limitNormalizedValue(value)
 {
-	constructor(){}
-	static limitNormalizedValue(value)
-	{
-		if (value < 0){
-			value = 0;
-		} else if(value > 1){
-			value = 1;
-		}
-		return value;
+	if (value < 0){
+		value = 0;
+	} else if(value > 1){
+		value = 1;
 	}
+	return value;
 }
 
-module.exports = Utils;
+module.exports = {
+	limitNormalizedValue:limitNormalizedValue
+}
+
+// export default class Utils 
+// {
+// 	constructor(){}
+// 	static limitNormalizedValue(value)
+// 	{
+// 		if (value < 0){
+// 			value = 0;
+// 		} else if(value > 1){
+// 			value = 1;
+// 		}
+// 		return value;
+// 	}
+
+// 	static testFunc()
+// 	{
+// 		console.log("testFunc");
+// 	}
+// }
+
+// module.exports = Utils;
