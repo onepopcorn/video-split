@@ -1,10 +1,11 @@
 'use strict';
 
-const BUFFER_PRELOAD_THRESHOLD =  0.075; // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
-let limitNormalizedValue = require('./utils').limitNormalizedValue;
-let lastElapsedTime = 0;
+const BUFFER_PRELOAD_THRESHOLD =  10/*0.075;*/ // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
+const BUFFER_DIFF_THRESHOLD = 0; // Threshold difference between elapsed time & previous time to consider it's buffering
+let normalize = require('./utils').normalize;
+let lastElapsedTime = Symbol();
 
-let STATE = {
+const STATE = {
 	'BUFFERING':'buffering',
 	'PAUSED':'paused',
 	'STOPPED':'stopped',
@@ -27,6 +28,7 @@ export default class VideoItem
 		this.isReady = false;
 		this.state = STATE.STOPPED;
 		this.elapsed = 0;
+		this['lastElapsedTime'] = 0;
 
 		// This is called when vimeo player is ready
 		function _onReady(item){
@@ -45,26 +47,35 @@ export default class VideoItem
 	 */
 	play(){
 		this.player.api('play');
-		this.state = STATE.PLAYING
+		this.state = STATE.PLAYING;
+	}
+	/*
+	 * Method to pause reproduction
+	 */
+	pause(){
+		this.player.api('pause');
+		this.state = STATE.PAUSED;
 	}
 	/*
 	 * Method to update the video state check. 
 	 */
-	update(){
-		if(this.elapsed - lastElapsedTime !== 0)
+	update(){	
+		if(this.elapsed - this['lastElapsedTime'] > BUFFER_DIFF_THRESHOLD)
+		{
 			this.state = STATE.PLAYING;
-		else if(this.state === STATE.PLAYING) {
+			this.isReady = true;
+		} else if(this.state !== STATE.PAUSED && this.state !== STATE.STOPPED){
 			this.state = STATE.BUFFERING;
+			this.isReady = false;
 		}
 
-		// console.log(this.id,this.elapsed - lastElapsedTime, this.state);
-		lastElapsedTime = this.elapsed;
+		this['lastElapsedTime'] = this.elapsed;
 	}
 	/*
 	 * @param value {Number} Volume value for video normalized (from 0 to 1)
 	 */
 	setVolume(value){
-		this.player.api('setVolume',limitNormalizedValue(value / 100));
+		this.player.api('setVolume',normalize(value / 100));
 	}
 	/*
 	 * @param value {String} Method to set the iframe width value. Value must be suplied with units in a String format (for instance "40px" pr "40%")
@@ -91,7 +102,7 @@ export default class VideoItem
 		}
 
 		function _onBufferProgress(e){
-			let percent = e.percent * 100 / BUFFER_PRELOAD_THRESHOLD;
+			let percent = e.seconds * 100 / BUFFER_PRELOAD_THRESHOLD;
 			preloader.setProgress(percent,this.id);
 		}
 		this.buffer(_onBufferFinish.bind(this),_onBufferProgress.bind(this));
@@ -102,13 +113,16 @@ export default class VideoItem
 	 * @param progressCallback {Function}
 	 */
 	buffer(callback,progressCallback){
+
 		function _onLoadProgress(e){
+			// for preloading
 			if(typeof progressCallback === 'function')
 				progressCallback(e);
 
-			if(e.percent > BUFFER_PRELOAD_THRESHOLD)
+			console.log("buffered",e.seconds - this.elapsed);
+			if(e.seconds >  BUFFER_PRELOAD_THRESHOLD - this.elapsed)
 			{
-				this.player.removeEvent('loadProgress');
+				// this.player.removeEvent('loadProgress');
 				if(typeof callback === 'function')
 					callback();
 			}
@@ -126,13 +140,22 @@ export default class VideoItem
 	 * @param value {Number} Value where the playhead must go in seconds
 	 */
 	setTime(value){
-		this.player.api('pause');
 		this.player.api('seekTo',value);
 		this.elapsed = value;
-		this.isReady = false;
+	}
+	/*
+	 * This method is used to buffer enough video before trying to resync both videos.
+	 * @param time {Number} Value where the playhead must go in seconds
+	 * @param callback {Function} Callback function to call when video is ready to play again
+	 */
+	resync(time,callback){
+		this.pause();
+		this.setTime(time);
 
 		this.buffer(function(){
-			console.log("READY TO PLAY AGAIN");
+			this.isReady = true;
+			callback();
 		}.bind(this));
+
 	}
 }

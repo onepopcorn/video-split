@@ -330,20 +330,28 @@ function play() {
 	videoRight.play();
 	overlay.hideMessage();
 	hasStarted = true;
+
+	setInterval(function () {
+		videoLeft.update();
+		videoRight.update();
+
+		console.log(videoLeft.state, videoRight.state);
+
+		if (videoLeft.state === 'buffering' && !videoLeft.isReady || videoRight.state === 'buffering' && !videoRight.isReady && !syncing) {
+			// console.log("out of sync");
+			syncing = true;
+			videoLeft.resync(Math.min(videoLeft.elapsed, videoRight.elapsed), resync);
+			videoRight.resync(Math.min(videoLeft.elapsed, videoRight.elapsed), resync);
+		}
+	}, 300);
 }
 
-setInterval(function () {
-	videoLeft.update();
-	videoRight.update();
-	console.log(videoLeft.state, "|", videoRight.state);
-}, 250);
-
-function syncVideos() {
-	var targetTime = Math.min(videoLeft.elapsed, videoRight.elapsed);
-
-	// videoLeft.setTime(targetTime);
-	// videoRight.setTime(targetTime);
-	// syncing = false;
+function resync() {
+	if (videoLeft.isReady && videoRight.isReady) {
+		videoLeft.play();
+		videoRight.play();
+		syncing = false;
+	}
 }
 
 function moveTo(percent) {
@@ -518,39 +526,13 @@ module.exports = exports['default'];
 },{}],5:[function(require,module,exports){
 'use strict';
 
-function limitNormalizedValue(value) {
-	if (value < 0) {
-		value = 0;
-	} else if (value > 1) {
-		value = 1;
-	}
-	return value;
+function normalize(value) {
+	return Math.min(1, Math.max(0, value));
 }
 
 module.exports = {
-	limitNormalizedValue: limitNormalizedValue
+	normalize: normalize
 };
-
-// export default class Utils
-// {
-// 	constructor(){}
-// 	static limitNormalizedValue(value)
-// 	{
-// 		if (value < 0){
-// 			value = 0;
-// 		} else if(value > 1){
-// 			value = 1;
-// 		}
-// 		return value;
-// 	}
-
-// 	static testFunc()
-// 	{
-// 		console.log("testFunc");
-// 	}
-// }
-
-// module.exports = Utils;
 
 },{}],6:[function(require,module,exports){
 'use strict';
@@ -563,9 +545,10 @@ var _createClass = (function () { function defineProperties(target, props) { for
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-var BUFFER_PRELOAD_THRESHOLD = 0.075; // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
-var limitNormalizedValue = require('./utils').limitNormalizedValue;
-var lastElapsedTime = 0;
+var BUFFER_PRELOAD_THRESHOLD = 10; /*0.075;*/ // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
+var BUFFER_DIFF_THRESHOLD = 0; // Threshold difference between elapsed time & previous time to consider it's buffering
+var normalize = require('./utils').normalize;
+var lastElapsedTime = Symbol();
 
 var STATE = {
 	'BUFFERING': 'buffering',
@@ -591,6 +574,7 @@ var VideoItem = (function () {
 		this.isReady = false;
 		this.state = STATE.STOPPED;
 		this.elapsed = 0;
+		this['lastElapsedTime'] = 0;
 
 		// This is called when vimeo player is ready
 		function _onReady(item) {
@@ -617,17 +601,30 @@ var VideoItem = (function () {
 		}
 
 		/*
+   * Method to pause reproduction
+   */
+	}, {
+		key: 'pause',
+		value: function pause() {
+			this.player.api('pause');
+			this.state = STATE.PAUSED;
+		}
+
+		/*
    * Method to update the video state check. 
    */
 	}, {
 		key: 'update',
 		value: function update() {
-			if (this.elapsed - lastElapsedTime !== 0) this.state = STATE.PLAYING;else if (this.state === STATE.PLAYING) {
+			if (this.elapsed - this['lastElapsedTime'] > BUFFER_DIFF_THRESHOLD) {
+				this.state = STATE.PLAYING;
+				this.isReady = true;
+			} else if (this.state !== STATE.PAUSED && this.state !== STATE.STOPPED) {
 				this.state = STATE.BUFFERING;
+				this.isReady = false;
 			}
 
-			// console.log(this.id,this.elapsed - lastElapsedTime, this.state);
-			lastElapsedTime = this.elapsed;
+			this['lastElapsedTime'] = this.elapsed;
 		}
 
 		/*
@@ -636,7 +633,7 @@ var VideoItem = (function () {
 	}, {
 		key: 'setVolume',
 		value: function setVolume(value) {
-			this.player.api('setVolume', limitNormalizedValue(value / 100));
+			this.player.api('setVolume', normalize(value / 100));
 		}
 
 		/*
@@ -669,7 +666,7 @@ var VideoItem = (function () {
 			}
 
 			function _onBufferProgress(e) {
-				var percent = e.percent * 100 / BUFFER_PRELOAD_THRESHOLD;
+				var percent = e.seconds * 100 / BUFFER_PRELOAD_THRESHOLD;
 				preloader.setProgress(percent, this.id);
 			}
 			this.buffer(_onBufferFinish.bind(this), _onBufferProgress.bind(this));
@@ -683,11 +680,14 @@ var VideoItem = (function () {
 	}, {
 		key: 'buffer',
 		value: function buffer(callback, progressCallback) {
+
 			function _onLoadProgress(e) {
+				// for preloading
 				if (typeof progressCallback === 'function') progressCallback(e);
 
-				if (e.percent > BUFFER_PRELOAD_THRESHOLD) {
-					this.player.removeEvent('loadProgress');
+				console.log("buffered", e.seconds - this.elapsed);
+				if (e.seconds > BUFFER_PRELOAD_THRESHOLD - this.elapsed) {
+					// this.player.removeEvent('loadProgress');
 					if (typeof callback === 'function') callback();
 				}
 			}
@@ -710,13 +710,24 @@ var VideoItem = (function () {
 	}, {
 		key: 'setTime',
 		value: function setTime(value) {
-			this.player.api('pause');
 			this.player.api('seekTo', value);
 			this.elapsed = value;
-			this.isReady = false;
+		}
+
+		/*
+   * This method is used to buffer enough video before trying to resync both videos.
+   * @param time {Number} Value where the playhead must go in seconds
+   * @param callback {Function} Callback function to call when video is ready to play again
+   */
+	}, {
+		key: 'resync',
+		value: function resync(time, callback) {
+			this.pause();
+			this.setTime(time);
 
 			this.buffer((function () {
-				console.log("READY TO PLAY AGAIN");
+				this.isReady = true;
+				callback();
 			}).bind(this));
 		}
 	}]);

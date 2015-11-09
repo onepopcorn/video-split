@@ -27,21 +27,33 @@ function play(){
 	videoRight.play();
 	overlay.hideMessage();
 	hasStarted = true;
+
+	setInterval(function(){
+			videoLeft.update();
+			videoRight.update();
+
+			console.log(videoLeft.state,videoRight.state);
+			
+			if((videoLeft.state === 'buffering' && !videoLeft.isReady) || (videoRight.state === 'buffering' && !videoRight.isReady) && !syncing)
+			{
+				// console.log("out of sync");
+				syncing = true;
+				videoLeft.resync(Math.min(videoLeft.elapsed,videoRight.elapsed),resync);
+				videoRight.resync(Math.min(videoLeft.elapsed,videoRight.elapsed),resync);
+
+			}
+
+	},300);
 }
 
-
-setInterval(function(){
-	videoLeft.update();
-	videoRight.update();
-	console.log(videoLeft.state, "|" ,videoRight.state);
-},250);
-
-function syncVideos(){
-	let targetTime = Math.min(videoLeft.elapsed,videoRight.elapsed);
-	
-	// videoLeft.setTime(targetTime);
-	// videoRight.setTime(targetTime);
-	// syncing = false;
+function resync()
+{
+	if(videoLeft.isReady && videoRight.isReady)
+	{
+		videoLeft.play();
+		videoRight.play();
+		syncing = false;
+	}
 }
 
 function moveTo(percent)

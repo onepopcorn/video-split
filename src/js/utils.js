@@ -1,36 +1,10 @@
 'use strict';
 
-function limitNormalizedValue(value)
+function normalize(value)
 {
-	if (value < 0){
-		value = 0;
-	} else if(value > 1){
-		value = 1;
-	}
-	return value;
+	return Math.min(1,Math.max(0,value))
 }
 
 module.exports = {
-	limitNormalizedValue:limitNormalizedValue
+	normalize:normalize
 }
-
-// export default class Utils 
-// {
-// 	constructor(){}
-// 	static limitNormalizedValue(value)
-// 	{
-// 		if (value < 0){
-// 			value = 0;
-// 		} else if(value > 1){
-// 			value = 1;
-// 		}
-// 		return value;
-// 	}
-
-// 	static testFunc()
-// 	{
-// 		console.log("testFunc");
-// 	}
-// }
-
-// module.exports = Utils;
