@@ -1,5 +1,7 @@
 'use strict';
 
+// NOTE: Some graphics card with Chrome's hardware accelerated graphics gets poor quality. More info here: https://vimeo.com/forums/topic:109071
+
 import Froogaloop from 'vimeo-froogaloop';
 import Video from './videoitem';
 import Preloader from './preloader';
@@ -36,7 +38,6 @@ function play(){
 
 function loop(e)
 {
-	console.log(e.detail.id,e.type,"event");
 	videoLeft.player.api('paused');
 	videoRight.player.api('paused');
 
@@ -49,8 +50,6 @@ function loop(e)
 
 function resync(e)
 {
-	console.log(e.detail.id, e.type,"event");
-
 	// Pausing videos
 	videoLeft.player.api('paused');
 	videoRight.player.api('paused');
@@ -61,8 +60,10 @@ function resync(e)
 	videoLeft.seek(lower);
 	videoRight.seek(lower);
 
-	videoLeft.addEventListener('bufferEnd',bufferEndHandler);
-	videoRight.addEventListener('bufferEnd',bufferEndHandler);
+	videoLeft.play();
+	videoRight.play();
+	// videoLeft.addEventListener('bufferEnd',bufferEndHandler);
+	// videoRight.addEventListener('bufferEnd',bufferEndHandler);
 }
 
 function bufferEndHandler(e){
@@ -116,3 +117,12 @@ function onmousemove (event){
 	}
 }
 container.addEventListener('mousemove',onmousemove);
+
+window.onblur = function(){
+	videoLeft.pause();
+	videoRight.pause();
+}
+
+window.onfocus = function(){
+	resync();
+}

@@ -27,7 +27,9 @@ When finished use `gulp` to start the development environment. If you just want 
 
 ## TO DO
 
-* Minify resulting scripts & assets
 * Change gulp-ruby-sass for PostCSS
 * Make a preloader class with text messages enabled
 * Make a browser minimum capabilities to allow the experience
+
+## NOTES
+Some graphic cards using Chrome's hardware accelerated graphics feature gets poor quality when scaling video. You can found more info about it [here](https://vimeo.com/forums/topic:109071)

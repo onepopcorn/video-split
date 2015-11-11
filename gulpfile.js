@@ -43,7 +43,7 @@ gulp.task('html',['clean-html'],function(){
 
 gulp.task('js',function(){
 	return gulp.src(paths.source.js)
-		   .pipe(browserify({debug:false,transforms:[babel/*,uglify*/]}))
+		   .pipe(browserify({debug:false,transforms:[babel,uglify]}))
 		   .on('error',function(err){console.log(err)})
 		   .pipe(source('bundle.js'))
 		   // .pipe(uglify({mangle:false}))
