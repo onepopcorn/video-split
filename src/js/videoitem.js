@@ -1,16 +1,26 @@
 'use strict';
 
-const BUFFER_PRELOAD_THRESHOLD =  10/*0.075;*/ // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
+const BUFFER_LOADED_THRESHOLD =  10 // Seconds - Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the forced values.
+const BUFFER_ENTER_THRESHOLD = 2;
 const BUFFER_DIFF_THRESHOLD = 0; // Threshold difference between elapsed time & previous time to consider it's buffering
 let normalize = require('./utils').normalize;
-let lastElapsedTime = Symbol();
+let percent = require('./utils').percent;
 
 const STATE = {
+	'UNLOADED' :'unloaded',
+	'LOADED'   :'loaded',
 	'BUFFERING':'buffering',
-	'PAUSED':'paused',
-	'STOPPED':'stopped',
-	'PLAYING':'playing'
+	'PAUSED'   :'paused',
+	'STOPPED'  :'stopped',
+	'PLAYING'  :'playing',
+	'SEEKING'  :'seeking',
+	'FINISHED' :'finished'
 }
+
+let bufferInitEvent;
+let bufferEndEvent;
+let videoFinishEvent;
+
 
 export default class VideoItem
 {
@@ -25,51 +35,108 @@ export default class VideoItem
 		this.iframe = this.wrapper.getElementsByTagName('iframe')[0];
 		this.player = $f(this.iframe);
 		this.player.addEvent('ready',_onReady.bind(this));
-		this.isReady = false;
-		this.state = STATE.STOPPED;
+		this.state = STATE.UNLOADED;
 		this.elapsed = 0;
-		this['lastElapsedTime'] = 0;
 
+		// EVENTS
+		bufferInitEvent = new CustomEvent('buffering',{detail:{id:this.id},bubbles:true,cancelable:true});
+		bufferEndEvent = new CustomEvent('bufferEnd',{detail:{id:this.id},bubbles:true,cancelable:true});
+		videoFinishEvent = new CustomEvent('finish',{detail:{id:this.id},bubbles:true,cancelable:true});
+
+		
+		// PRIVATE METHODS
 		// This is called when vimeo player is ready
 		function _onReady(item){
 			this.player.removeEvent('ready');
-			this.player.api('setLoop',true);
-			this.preload(preloader);
 			this.player.addEvent('playProgress',_onPlayback.bind(this));
+			this.player.addEvent('loadProgress',_onPreload.bind(this));
+			this.player.addEvent('finish',_onFinish.bind(this));
+			
+			// Force initial buffering for video preload
+			// this.player.api('setLoop',true);
+			this.player.api('play');
+			this.player.api('seekTo',0);
+			this.player.api('pause');
 		}
 
 		function _onPlayback(e){
+			if(this.state === STATE.UNLOADED)
+			{
+				this.player.api('pause');
+				this.player.api('seekTo',0);
+				this.state = STATE.LOADED;
+			}
+
 			this.elapsed = e.seconds;
+		}
+
+		function _onLoadProgress(e){
+			let bufferLength = e.seconds - this.elapsed;
+
+			if(this.state === STATE.BUFFERING)
+			{
+				if(bufferLength > BUFFER_LOADED_THRESHOLD)
+				{
+					this.state = STATE.PAUSED;
+					this.wrapper.dispatchEvent(bufferEndEvent);
+				}
+				// Buffer progress when state is buffering
+				console.log(this.id,bufferLength);
+
+			} else if(bufferLength <= BUFFER_ENTER_THRESHOLD) {
+				this.player.api('pause');
+				this.state = STATE.BUFFERING;
+				this.wrapper.dispatchEvent(bufferInitEvent);
+			}
+		}
+
+		function _onPreload(e){
+			let percentLoaded = percent(e.seconds,BUFFER_LOADED_THRESHOLD);
+			if(percentLoaded >= 100){
+				preloader.setProgress(100,this.id);
+				this.player.removeEvent('loadProgress',_onPreload);
+				this.player.addEvent('loadProgress',_onLoadProgress.bind(this));
+				this.state = STATE.STOPPED;
+			} else {
+				preloader.setProgress(percentLoaded,this.id);
+			}
+		}
+
+		function _onFinish(e){
+			this.state = STATE.FINISHED;
+			this.wrapper.dispatchEvent(videoFinishEvent);
 		}
 	}
 	/*
-	 * A simple method to call play to Vimeo's player
+	 * A simple method to call play to Vimeo's player and update video item state
 	 */
 	play(){
 		this.player.api('play');
 		this.state = STATE.PLAYING;
 	}
 	/*
-	 * Method to pause reproduction
+	 * Method to pause reproduction and update video item state
 	 */
 	pause(){
 		this.player.api('pause');
 		this.state = STATE.PAUSED;
 	}
 	/*
-	 * Method to update the video state check. 
+	 * Attach an event to the video item
+	 * @param name {String} Event name to be attached
+	 * @param callback {Function} Callback to call when event is fired
 	 */
-	update(){	
-		if(this.elapsed - this['lastElapsedTime'] > BUFFER_DIFF_THRESHOLD)
-		{
-			this.state = STATE.PLAYING;
-			this.isReady = true;
-		} else if(this.state !== STATE.PAUSED && this.state !== STATE.STOPPED){
-			this.state = STATE.BUFFERING;
-			this.isReady = false;
-		}
-
-		this['lastElapsedTime'] = this.elapsed;
+	addEventListener(name,callback){
+		this.wrapper.addEventListener(name,callback);
+	}
+	/*
+	 * Remove previously attached events
+	 * @param name {String} Event name
+	 * @param callback {Funciton} Callback attached previously
+	 */ 
+	removeEventListener(name,callback)
+	{
+		this.wrapper.removeEventListener(name,callback);
 	}
 	/*
 	 * @param value {Number} Volume value for video normalized (from 0 to 1)
@@ -84,52 +151,6 @@ export default class VideoItem
 		this.wrapper.style.width = value;
 	}
 	/*
-	 * @param preloader {Class} Method to force Vimeo's videos to buffer before activate user interaction. This is to start videos in sync as much as possible
-	 */
-	preload(preloader){
-		// This forces players to start buffering
-		function _onPlayProgress(){
-			this.player.api('pause');
-			this.player.api('seekTo',0);
-			this.player.removeEvent('play');
-		}
-		this.player.addEvent('play',_onPlayProgress.bind(this));
-		this.player.api('play');
-
-		// This hold preloader 'til videos have enough loaded buffer to play in sync
-		function _onBufferFinish(){
-			this.isReady = true;
-		}
-
-		function _onBufferProgress(e){
-			let percent = e.seconds * 100 / BUFFER_PRELOAD_THRESHOLD;
-			preloader.setProgress(percent,this.id);
-		}
-		this.buffer(_onBufferFinish.bind(this),_onBufferProgress.bind(this));
-	}
-	/*
-	 * This method handles the buffering progress and state
-	 * @param callback {Function} Function to be called when 
-	 * @param progressCallback {Function}
-	 */
-	buffer(callback,progressCallback){
-
-		function _onLoadProgress(e){
-			// for preloading
-			if(typeof progressCallback === 'function')
-				progressCallback(e);
-
-			console.log("buffered",e.seconds - this.elapsed);
-			if(e.seconds >  BUFFER_PRELOAD_THRESHOLD - this.elapsed)
-			{
-				// this.player.removeEvent('loadProgress');
-				if(typeof callback === 'function')
-					callback();
-			}
-		}
-		this.player.addEvent('loadProgress',_onLoadProgress.bind(this));
-	}
-	/*
 	 * This methods returns elapsed time
 	 */
 	getTime(){
@@ -139,23 +160,7 @@ export default class VideoItem
 	 * This method moves playhead to specified value.
 	 * @param value {Number} Value where the playhead must go in seconds
 	 */
-	setTime(value){
+	seek(value){
 		this.player.api('seekTo',value);
-		this.elapsed = value;
-	}
-	/*
-	 * This method is used to buffer enough video before trying to resync both videos.
-	 * @param time {Number} Value where the playhead must go in seconds
-	 * @param callback {Function} Callback function to call when video is ready to play again
-	 */
-	resync(time,callback){
-		this.pause();
-		this.setTime(time);
-
-		this.buffer(function(){
-			this.isReady = true;
-			callback();
-		}.bind(this));
-
 	}
 }

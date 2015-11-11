@@ -289,8 +289,6 @@ var Froogaloop = (function () {
 },{}],2:[function(require,module,exports){
 'use strict';
 
-// require('vimeo-froogaloop');
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
 var _vimeoFroogaloop = require('vimeo-froogaloop');
@@ -326,31 +324,56 @@ function init() {
 }
 
 function play() {
-	videoLeft.play();
-	videoRight.play();
 	overlay.hideMessage();
 	hasStarted = true;
 
-	setInterval(function () {
-		videoLeft.update();
-		videoRight.update();
+	videoLeft.addEventListener('buffering', resync);
+	videoRight.addEventListener('buffering', resync);
+	videoLeft.addEventListener('finish', loop);
+	videoRight.addEventListener('finish', loop);
 
-		console.log(videoLeft.state, videoRight.state);
-
-		if (videoLeft.state === 'buffering' && !videoLeft.isReady || videoRight.state === 'buffering' && !videoRight.isReady && !syncing) {
-			// console.log("out of sync");
-			syncing = true;
-			videoLeft.resync(Math.min(videoLeft.elapsed, videoRight.elapsed), resync);
-			videoRight.resync(Math.min(videoLeft.elapsed, videoRight.elapsed), resync);
-		}
-	}, 300);
+	videoLeft.play();
+	videoRight.play();
 }
 
-function resync() {
-	if (videoLeft.isReady && videoRight.isReady) {
+function loop(e) {
+	console.log(e.detail.id, e.type, "event");
+	videoLeft.player.api('paused');
+	videoRight.player.api('paused');
+
+	videoLeft.seek(0);
+	videoRight.seek(0);
+
+	videoRight.play();
+	videoLeft.play();
+}
+
+function resync(e) {
+	console.log(e.detail.id, e.type, "event");
+
+	// Pausing videos
+	videoLeft.player.api('paused');
+	videoRight.player.api('paused');
+
+	// Get lower elapsed time
+	var lower = Math.min(videoLeft.elapsed, videoRight.elapsed);
+
+	videoLeft.seek(lower);
+	videoRight.seek(lower);
+
+	videoLeft.addEventListener('bufferEnd', bufferEndHandler);
+	videoRight.addEventListener('bufferEnd', bufferEndHandler);
+}
+
+function bufferEndHandler(e) {
+	if (videoLeft.state === 'paused' && videoRight.state === 'paused') {
+		console.log("playing resynced videos");
+
+		videoLeft.addEventListener('bufferEnd', bufferEndHandler);
+		videoRight.addEventListener('bufferEnd', bufferEndHandler);
+
 		videoLeft.play();
 		videoRight.play();
-		syncing = false;
 	}
 }
 
@@ -363,17 +386,25 @@ function moveTo(percent) {
 }
 
 overlay.element.addEventListener('mousedown', function (event) {
+	event.stopPropagation();
+	event.preventDefault();
+
 	isDown = true;
 	// This is used to move the overlay keeping the offset mouse position and preventing a quick jump when mousemove event is fired.
 	pointerOffset = 100 * event.pageX / window.innerWidth - overlay.position;
 	if (!hasStarted) play();
 });
 
-overlay.element.addEventListener('mouseup', function () {
+overlay.element.addEventListener('mouseup', function (event) {
+	event.stopPropagation();
+	event.preventDefault();
 	isDown = false;
 });
 
 function onmousemove(event) {
+	event.stopPropagation();
+	event.preventDefault();
+
 	if (isDown) {
 		var percent = 100 * event.pageX / window.innerWidth;
 		moveTo(percent - pointerOffset);
@@ -530,8 +561,13 @@ function normalize(value) {
 	return Math.min(1, Math.max(0, value));
 }
 
+function percent(value, total) {
+	return value * 100 / total;
+}
+
 module.exports = {
-	normalize: normalize
+	normalize: normalize,
+	percent: percent
 };
 
 },{}],6:[function(require,module,exports){
@@ -545,17 +581,26 @@ var _createClass = (function () { function defineProperties(target, props) { for
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-var BUFFER_PRELOAD_THRESHOLD = 10; /*0.075;*/ // Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the force values. Keep in mind this value is different for each video.
+var BUFFER_LOADED_THRESHOLD = 10; // Seconds - Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the forced values.
+var BUFFER_ENTER_THRESHOLD = 2;
 var BUFFER_DIFF_THRESHOLD = 0; // Threshold difference between elapsed time & previous time to consider it's buffering
 var normalize = require('./utils').normalize;
-var lastElapsedTime = Symbol();
+var percent = require('./utils').percent;
 
 var STATE = {
+	'UNLOADED': 'unloaded',
+	'LOADED': 'loaded',
 	'BUFFERING': 'buffering',
 	'PAUSED': 'paused',
 	'STOPPED': 'stopped',
-	'PLAYING': 'playing'
+	'PLAYING': 'playing',
+	'SEEKING': 'seeking',
+	'FINISHED': 'finished'
 };
+
+var bufferInitEvent = undefined;
+var bufferEndEvent = undefined;
+var videoFinishEvent = undefined;
 
 var VideoItem = (function () {
 	/*
@@ -571,26 +616,76 @@ var VideoItem = (function () {
 		this.iframe = this.wrapper.getElementsByTagName('iframe')[0];
 		this.player = $f(this.iframe);
 		this.player.addEvent('ready', _onReady.bind(this));
-		this.isReady = false;
-		this.state = STATE.STOPPED;
+		this.state = STATE.UNLOADED;
 		this.elapsed = 0;
-		this['lastElapsedTime'] = 0;
 
+		// EVENTS
+		bufferInitEvent = new CustomEvent('buffering', { detail: { id: this.id }, bubbles: true, cancelable: true });
+		bufferEndEvent = new CustomEvent('bufferEnd', { detail: { id: this.id }, bubbles: true, cancelable: true });
+		videoFinishEvent = new CustomEvent('finish', { detail: { id: this.id }, bubbles: true, cancelable: true });
+
+		// PRIVATE METHODS
 		// This is called when vimeo player is ready
 		function _onReady(item) {
 			this.player.removeEvent('ready');
-			this.player.api('setLoop', true);
-			this.preload(preloader);
 			this.player.addEvent('playProgress', _onPlayback.bind(this));
+			this.player.addEvent('loadProgress', _onPreload.bind(this));
+			this.player.addEvent('finish', _onFinish.bind(this));
+
+			// Force initial buffering for video preload
+			// this.player.api('setLoop',true);
+			this.player.api('play');
+			this.player.api('seekTo', 0);
+			this.player.api('pause');
 		}
 
 		function _onPlayback(e) {
+			if (this.state === STATE.UNLOADED) {
+				this.player.api('pause');
+				this.player.api('seekTo', 0);
+				this.state = STATE.LOADED;
+			}
+
 			this.elapsed = e.seconds;
+		}
+
+		function _onLoadProgress(e) {
+			var bufferLength = e.seconds - this.elapsed;
+
+			if (this.state === STATE.BUFFERING) {
+				if (bufferLength > BUFFER_LOADED_THRESHOLD) {
+					this.state = STATE.PAUSED;
+					this.wrapper.dispatchEvent(bufferEndEvent);
+				}
+				// Buffer progress when state is buffering
+				console.log(this.id, bufferLength);
+			} else if (bufferLength <= BUFFER_ENTER_THRESHOLD) {
+				this.player.api('pause');
+				this.state = STATE.BUFFERING;
+				this.wrapper.dispatchEvent(bufferInitEvent);
+			}
+		}
+
+		function _onPreload(e) {
+			var percentLoaded = percent(e.seconds, BUFFER_LOADED_THRESHOLD);
+			if (percentLoaded >= 100) {
+				preloader.setProgress(100, this.id);
+				this.player.removeEvent('loadProgress', _onPreload);
+				this.player.addEvent('loadProgress', _onLoadProgress.bind(this));
+				this.state = STATE.STOPPED;
+			} else {
+				preloader.setProgress(percentLoaded, this.id);
+			}
+		}
+
+		function _onFinish(e) {
+			this.state = STATE.FINISHED;
+			this.wrapper.dispatchEvent(videoFinishEvent);
 		}
 	}
 
 	/*
-  * A simple method to call play to Vimeo's player
+  * A simple method to call play to Vimeo's player and update video item state
   */
 
 	_createClass(VideoItem, [{
@@ -601,7 +696,7 @@ var VideoItem = (function () {
 		}
 
 		/*
-   * Method to pause reproduction
+   * Method to pause reproduction and update video item state
    */
 	}, {
 		key: 'pause',
@@ -611,20 +706,25 @@ var VideoItem = (function () {
 		}
 
 		/*
-   * Method to update the video state check. 
+   * Attach an event to the video item
+   * @param name {String} Event name to be attached
+   * @param callback {Function} Callback to call when event is fired
    */
 	}, {
-		key: 'update',
-		value: function update() {
-			if (this.elapsed - this['lastElapsedTime'] > BUFFER_DIFF_THRESHOLD) {
-				this.state = STATE.PLAYING;
-				this.isReady = true;
-			} else if (this.state !== STATE.PAUSED && this.state !== STATE.STOPPED) {
-				this.state = STATE.BUFFERING;
-				this.isReady = false;
-			}
+		key: 'addEventListener',
+		value: function addEventListener(name, callback) {
+			this.wrapper.addEventListener(name, callback);
+		}
 
-			this['lastElapsedTime'] = this.elapsed;
+		/*
+   * Remove previously attached events
+   * @param name {String} Event name
+   * @param callback {Funciton} Callback attached previously
+   */
+	}, {
+		key: 'removeEventListener',
+		value: function removeEventListener(name, callback) {
+			this.wrapper.removeEventListener(name, callback);
 		}
 
 		/*
@@ -646,55 +746,6 @@ var VideoItem = (function () {
 		}
 
 		/*
-   * @param preloader {Class} Method to force Vimeo's videos to buffer before activate user interaction. This is to start videos in sync as much as possible
-   */
-	}, {
-		key: 'preload',
-		value: function preload(preloader) {
-			// This forces players to start buffering
-			function _onPlayProgress() {
-				this.player.api('pause');
-				this.player.api('seekTo', 0);
-				this.player.removeEvent('play');
-			}
-			this.player.addEvent('play', _onPlayProgress.bind(this));
-			this.player.api('play');
-
-			// This hold preloader 'til videos have enough loaded buffer to play in sync
-			function _onBufferFinish() {
-				this.isReady = true;
-			}
-
-			function _onBufferProgress(e) {
-				var percent = e.seconds * 100 / BUFFER_PRELOAD_THRESHOLD;
-				preloader.setProgress(percent, this.id);
-			}
-			this.buffer(_onBufferFinish.bind(this), _onBufferProgress.bind(this));
-		}
-
-		/*
-   * This method handles the buffering progress and state
-   * @param callback {Function} Function to be called when 
-   * @param progressCallback {Function}
-   */
-	}, {
-		key: 'buffer',
-		value: function buffer(callback, progressCallback) {
-
-			function _onLoadProgress(e) {
-				// for preloading
-				if (typeof progressCallback === 'function') progressCallback(e);
-
-				console.log("buffered", e.seconds - this.elapsed);
-				if (e.seconds > BUFFER_PRELOAD_THRESHOLD - this.elapsed) {
-					// this.player.removeEvent('loadProgress');
-					if (typeof callback === 'function') callback();
-				}
-			}
-			this.player.addEvent('loadProgress', _onLoadProgress.bind(this));
-		}
-
-		/*
    * This methods returns elapsed time
    */
 	}, {
@@ -708,27 +759,9 @@ var VideoItem = (function () {
    * @param value {Number} Value where the playhead must go in seconds
    */
 	}, {
-		key: 'setTime',
-		value: function setTime(value) {
+		key: 'seek',
+		value: function seek(value) {
 			this.player.api('seekTo', value);
-			this.elapsed = value;
-		}
-
-		/*
-   * This method is used to buffer enough video before trying to resync both videos.
-   * @param time {Number} Value where the playhead must go in seconds
-   * @param callback {Function} Callback function to call when video is ready to play again
-   */
-	}, {
-		key: 'resync',
-		value: function resync(time, callback) {
-			this.pause();
-			this.setTime(time);
-
-			this.buffer((function () {
-				this.isReady = true;
-				callback();
-			}).bind(this));
 		}
 	}]);
 

@@ -1,6 +1,5 @@
 'use strict';
 
-// require('vimeo-froogaloop');
 import Froogaloop from 'vimeo-froogaloop';
 import Video from './videoitem';
 import Preloader from './preloader';
@@ -17,42 +16,65 @@ let syncing = false;
 let hasStarted = false;
 let pointerOffset = 0;
 
-function init(){		
+function init(){
 	moveTo(50);
 	document.getElementById('container').className = "fadein";
 }
 
 function play(){
-	videoLeft.play();
-	videoRight.play();
 	overlay.hideMessage();
 	hasStarted = true;
 
-	setInterval(function(){
-			videoLeft.update();
-			videoRight.update();
+	videoLeft.addEventListener('buffering',resync);
+	videoRight.addEventListener('buffering',resync);
+	videoLeft.addEventListener('finish',loop);
+	videoRight.addEventListener('finish',loop);
 
-			console.log(videoLeft.state,videoRight.state);
-			
-			if((videoLeft.state === 'buffering' && !videoLeft.isReady) || (videoRight.state === 'buffering' && !videoRight.isReady) && !syncing)
-			{
-				// console.log("out of sync");
-				syncing = true;
-				videoLeft.resync(Math.min(videoLeft.elapsed,videoRight.elapsed),resync);
-				videoRight.resync(Math.min(videoLeft.elapsed,videoRight.elapsed),resync);
-
-			}
-
-	},300);
+	videoLeft.play();
+	videoRight.play();
 }
 
-function resync()
+function loop(e)
 {
-	if(videoLeft.isReady && videoRight.isReady)
-	{
+	console.log(e.detail.id,e.type,"event");
+	videoLeft.player.api('paused');
+	videoRight.player.api('paused');
+
+	videoLeft.seek(0);
+	videoRight.seek(0);
+
+	videoRight.play();
+	videoLeft.play();
+}
+
+function resync(e)
+{
+	console.log(e.detail.id, e.type,"event");
+
+	// Pausing videos
+	videoLeft.player.api('paused');
+	videoRight.player.api('paused');
+	
+	// Get lower elapsed time
+	let lower = Math.min(videoLeft.elapsed,videoRight.elapsed);
+
+	videoLeft.seek(lower);
+	videoRight.seek(lower);
+
+	videoLeft.addEventListener('bufferEnd',bufferEndHandler);
+	videoRight.addEventListener('bufferEnd',bufferEndHandler);
+}
+
+function bufferEndHandler(e){
+	if(videoLeft.state === 'paused' && videoRight.state === 'paused')
+	{		
+		console.log("playing resynced videos");
+		
+		videoLeft.addEventListener('bufferEnd',bufferEndHandler);
+		videoRight.addEventListener('bufferEnd',bufferEndHandler);
+		
 		videoLeft.play();
 		videoRight.play();
-		syncing = false;
 	}
 }
 
@@ -67,6 +89,9 @@ function moveTo(percent)
 
 
 overlay.element.addEventListener('mousedown',function(event){
+	event.stopPropagation();
+	event.preventDefault();
+
 	isDown = true
 	// This is used to move the overlay keeping the offset mouse position and preventing a quick jump when mousemove event is fired.
 	pointerOffset = 100 * event.pageX / window.innerWidth - overlay.position;
@@ -74,11 +99,16 @@ overlay.element.addEventListener('mousedown',function(event){
 		play();
 });
 
-overlay.element.addEventListener('mouseup',function(){
+overlay.element.addEventListener('mouseup',function(event){
+	event.stopPropagation();
+	event.preventDefault();
 	isDown = false;
 });
 
 function onmousemove (event){
+	event.stopPropagation();
+	event.preventDefault();
+
 	if(isDown)
 	{
 		let percent = 100 * event.pageX / window.innerWidth;	
