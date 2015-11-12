@@ -27,10 +27,10 @@ function play(){
 	overlay.hideMessage();
 	hasStarted = true;
 
-	videoLeft.addEventListener('buffering',resync);
-	videoRight.addEventListener('buffering',resync);
-	videoLeft.addEventListener('finish',loop);
-	videoRight.addEventListener('finish',loop);
+	videoLeft.addEventListener('buffering',onBuffer);
+	videoRight.addEventListener('buffering',onBuffer);
+	// videoLeft.addEventListener('finish',loop);
+	// videoRight.addEventListener('finish',loop);
 
 	videoLeft.play();
 	videoRight.play();
@@ -60,10 +60,13 @@ function resync(e)
 	videoLeft.seek(lower);
 	videoRight.seek(lower);
 
-	videoLeft.play();
-	videoRight.play();
 	// videoLeft.addEventListener('bufferEnd',bufferEndHandler);
 	// videoRight.addEventListener('bufferEnd',bufferEndHandler);
+}
+
+function onBuffer(e)
+{
+	
 }
 
 function bufferEndHandler(e){
@@ -84,8 +87,8 @@ function moveTo(percent)
 	videoLeft.setWidth(percent + "%");
 	overlay.setPosition(percent);
 
-	videoLeft.setVolume(percent + pointerOffset);
-	videoRight.setVolume(100 - percent + pointerOffset);
+	// videoLeft.setVolume(percent + pointerOffset);
+	// videoRight.setVolume(100 - percent + pointerOffset);
 }
 
 
@@ -121,8 +124,10 @@ container.addEventListener('mousemove',onmousemove);
 window.onblur = function(){
 	videoLeft.pause();
 	videoRight.pause();
+	resync()
 }
 
 window.onfocus = function(){
-	resync();
+	videoLeft.play();
+	videoRight.play();
 }

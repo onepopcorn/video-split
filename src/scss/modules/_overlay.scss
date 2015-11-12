@@ -2,10 +2,13 @@
 	position:absolute;
 	height:100%;
 	cursor:pointer;
+	width:$bar-outter-width;
+	margin-left:-$bar-outter-width /2;
 	
 	.line{
 		height: 100%;
-		width: $bar-width;
+		margin-left:$bar-outter-width / 2;
+		width: $bar-inner-width;
 		background-color:$main-color;
 		@include box-shadow(0,0,4px,$main-color);
 	}
@@ -14,15 +17,16 @@
 		display: block;
 		position:absolute;
 		top:0;
-		left:0;
-		width:$bar-icon-size;
+		left:$bar-outter-width /2;
+		width:$bar-outter-width /2;
 		height:100%;
 		background:url('../images/arrow.png') no-repeat center;
-		background-size:80%;
+		background-size:$bar-icon-size;
 		box-sizing:border-box;
 
 		&.left{
-			left:-$bar-icon-size;
+			// left:-$bar-icon-size;
+			left:0;
 		}
 
 		&.right{

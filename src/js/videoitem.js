@@ -51,9 +51,9 @@ export default class VideoItem
 			this.player.addEvent('playProgress',_onPlayback.bind(this));
 			this.player.addEvent('loadProgress',_onPreload.bind(this));
 			this.player.addEvent('finish',_onFinish.bind(this));
+			this.player.api('setLoop',true);
 			
 			// Force initial buffering for video preload
-			// this.player.api('setLoop',true);
 			this.player.api('play');
 			this.player.api('seekTo',0);
 			this.player.api('pause');
