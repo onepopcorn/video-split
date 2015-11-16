@@ -51,7 +51,7 @@ export default class VideoItem
 			this.player.addEvent('playProgress',_onPlayback.bind(this));
 			this.player.addEvent('loadProgress',_onPreload.bind(this));
 			this.player.addEvent('finish',_onFinish.bind(this));
-			this.player.api('setLoop',true);
+			// this.player.api('setLoop',true);
 			
 			// Force initial buffering for video preload
 			this.player.api('play');
@@ -149,6 +149,12 @@ export default class VideoItem
 	 */
 	setWidth(value){
 		this.wrapper.style.width = value;
+	}
+	/*
+	 * This methods returns current width value
+	 */
+	getWidth(){
+		return this.wrapper.style.width.split("%")[0];
 	}
 	/*
 	 * This methods returns elapsed time

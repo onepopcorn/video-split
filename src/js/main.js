@@ -19,18 +19,20 @@ let hasStarted = false;
 let pointerOffset = 0;
 
 function init(){
-	moveTo(50);
+	// moveTo(50);
+	// overlay.showArrows();
 	document.getElementById('container').className = "fadein";
+	moveTo(0);
 }
 
 function play(){
-	overlay.hideMessage();
+	// overlay.hideMessage();
 	hasStarted = true;
 
 	videoLeft.addEventListener('buffering',onBuffer);
 	videoRight.addEventListener('buffering',onBuffer);
-	// videoLeft.addEventListener('finish',loop);
-	// videoRight.addEventListener('finish',loop);
+	videoLeft.addEventListener('finish',loop);
+	videoRight.addEventListener('finish',loop);
 
 	videoLeft.play();
 	videoRight.play();
@@ -87,9 +89,23 @@ function moveTo(percent)
 	videoLeft.setWidth(percent + "%");
 	overlay.setPosition(percent);
 
-	// videoLeft.setVolume(percent + pointerOffset);
-	// videoRight.setVolume(100 - percent + pointerOffset);
+	videoLeft.setVolume(percent + pointerOffset);
+	videoRight.setVolume(100 - percent + pointerOffset);
 }
+
+function animateTo(percet,seconds)
+{
+	
+}
+
+let target = 100;
+function render(){
+	let current = videoLeft.getWidth();
+	moveTo(current++);
+	window.requestAnimationFrame(render);
+}
+
+// window.requestAnimationFrame(render);
 
 
 overlay.element.addEventListener('mousedown',function(event){
