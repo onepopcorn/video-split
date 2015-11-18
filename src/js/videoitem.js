@@ -5,6 +5,9 @@ const BUFFER_ENTER_THRESHOLD = 2;
 const BUFFER_DIFF_THRESHOLD = 0; // Threshold difference between elapsed time & previous time to consider it's buffering
 let normalize = require('./utils').normalize;
 let percent = require('./utils').percent;
+let bufferInitEvent;
+let bufferEndEvent;
+let videoFinishEvent;
 
 const STATE = {
 	'UNLOADED' :'unloaded',
@@ -17,11 +20,6 @@ const STATE = {
 	'FINISHED' :'finished'
 }
 
-let bufferInitEvent;
-let bufferEndEvent;
-let videoFinishEvent;
-
-
 export default class VideoItem
 {
 	/*
@@ -33,6 +31,7 @@ export default class VideoItem
 		this.wrapper = document.getElementById(id);
 		this.id = this.wrapper.getAttribute("data-id");
 		this.iframe = this.wrapper.getElementsByTagName('iframe')[0];
+		this.message = this.wrapper.getElementsByClassName('message')[0];
 		this.player = $f(this.iframe);
 		this.player.addEvent('ready',_onReady.bind(this));
 		this.state = STATE.UNLOADED;
@@ -169,4 +168,18 @@ export default class VideoItem
 	seek(value){
 		this.player.api('seekTo',value);
 	}
+	/*
+	 * Sets text to display
+	 * @param text {String} Text to be displayed
+	 */
+	setText(text){
+		this.message.innerHTML = text;
+	}
+	/*
+	 * Hide message text
+	 */
+	hideText(){
+		this.message.className = this.message.className + " fadeout";
+	}
+
 }

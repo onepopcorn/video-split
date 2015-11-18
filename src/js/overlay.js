@@ -5,10 +5,9 @@ export default class Overlay {
 	 * @param {String} ID of div where overlay elements are
 	 * @param {String} ID of div where all messages are gona be
 	 */
-	constructor(overlayID,messageID)
+	constructor(overlayID)
 	{
 		this.element  = document.getElementById(overlayID);
-		this.message  = document.getElementById(messageID);
 		this.arrows   = document.getElementsByClassName('arrow');
 		this.position = 0;
 	}
@@ -32,27 +31,5 @@ export default class Overlay {
 	hideArrows(){
 		this.arrows[0].className = this.arrows[0].className.split(' show').join("");
 		this.arrows[1].className = this.arrows[1].className.split(' show').join("");
-	}
-	/*
-	 *  This method just hides the message div
-	 */
-	hideMessage(){
-		this.message.className = 'fadeout';
-	}
-	/*
-	 * This methods just shows previous hidded message div
-	 */
-	showMessage(){
-		this.message.className = '';
-	}
-	/*
-	 * @param {String} Message to show on message div
-	 */
-	setMessage(msg){
-		this.message.innerHTML = msg;
-	}
-
-	setWidth(){
-		
 	}
 }

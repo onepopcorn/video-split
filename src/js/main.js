@@ -3,14 +3,16 @@
 // NOTE: Some graphics card with Chrome's hardware accelerated graphics gets poor quality. More info here: https://vimeo.com/forums/topic:109071
 
 import Froogaloop from 'vimeo-froogaloop';
+import TWEEN from 'tween.js';
 import Video from './videoitem';
 import Preloader from './preloader';
 import Overlay from './overlay';
+import raf from 'raf';
 
-let preloader = new Preloader('preloader','status',init);
+let preloader = new Preloader('preloader',init);
 let videoRight = new Video('video-wrapper-right',preloader);
 let videoLeft = new Video('video-wrapper-left',preloader);
-let overlay = new Overlay('overlay','message');
+let overlay = new Overlay('overlay');
 let container = document.getElementById('container');
 
 let isDown = false;
@@ -19,15 +21,72 @@ let hasStarted = false;
 let pointerOffset = 0;
 
 function init(){
-	// moveTo(50);
-	// overlay.showArrows();
-	document.getElementById('container').className = "fadein";
-	moveTo(0);
+
+	let tween4 = new TWEEN.Tween({percent:100})
+				 .to({percent:50},2000)
+				 .easing(TWEEN.Easing.Cubic.InOut)
+				 .onUpdate(moveTo)
+				 .onStart(function(){
+				 	videoLeft.setText("");
+				 	videoRight.setText("");
+				 })
+				 .onComplete(function(){
+				 	overlay.showArrows();
+				 	document.getElementById('container').className = "fadein";
+				 	videoLeft.setText('arrastra las flechas');
+				 	videoRight.setText('arrastra las flechas');
+				 	setInteractivity();
+				 });
+
+	let tween3 = new TWEEN.Tween({percent:0})
+				 .to({percent:100},2000)
+				 .easing(TWEEN.Easing.Cubic.InOut)
+				 .onUpdate(moveTo)
+				 .chain(tween4);
+
+	let tween2 = new TWEEN.Tween({percent:100})
+				 .to({percent:0},2000)
+				 .easing(TWEEN.Easing.Cubic.InOut)
+				 .onUpdate(moveTo)
+				 .chain(tween3)
+				 .onComplete(function(){
+				 	videoLeft.setText("descúbrelo tu mismo");
+				 });
+
+	let tween1 = new TWEEN.Tween({percent:0})
+				 .to({percent:100})
+				 .easing(TWEEN.Easing.Cubic.InOut)
+				 .onUpdate(moveTo)
+				 .chain(tween2)
+				 .onStart(function(){
+				 	videoLeft.setText("Siempre existe");
+				 })
+				 .onComplete(function(){
+				 	videoRight.setText("otro punto de vista");
+				 })
+				 .start();
+
+}
+
+function render(){
+	TWEEN.update();
+	raf(render);
+}
+raf(render);
+
+function setInteractivity(){
+	container.addEventListener('mousemove',onmousemove);
+	overlay.element.addEventListener('mouseup',onmouseup);
+	overlay.element.addEventListener('mousedown',onmousedown);
+	window.onblur = onblurCallback;
+	window.onfocus = onfocusCallback;
 }
 
 function play(){
-	// overlay.hideMessage();
 	hasStarted = true;
+
+	videoLeft.hideText();
+	videoRight.hideText();
 
 	videoLeft.addEventListener('buffering',onBuffer);
 	videoRight.addEventListener('buffering',onBuffer);
@@ -38,8 +97,7 @@ function play(){
 	videoRight.play();
 }
 
-function loop(e)
-{
+function loop(e){
 	videoLeft.player.api('paused');
 	videoRight.player.api('paused');
 
@@ -50,8 +108,7 @@ function loop(e)
 	videoLeft.play();
 }
 
-function resync(e)
-{
+function resync(e){
 	// Pausing videos
 	videoLeft.player.api('paused');
 	videoRight.player.api('paused');
@@ -66,10 +123,7 @@ function resync(e)
 	// videoRight.addEventListener('bufferEnd',bufferEndHandler);
 }
 
-function onBuffer(e)
-{
-	
-}
+function onBuffer(e){}
 
 function bufferEndHandler(e){
 	if(videoLeft.state === 'paused' && videoRight.state === 'paused')
@@ -84,31 +138,15 @@ function bufferEndHandler(e){
 	}
 }
 
-function moveTo(percent)
-{
-	videoLeft.setWidth(percent + "%");
-	overlay.setPosition(percent);
+function moveTo(){
+	videoLeft.setWidth(this.percent + "%");
+	overlay.setPosition(this.percent);
 
-	videoLeft.setVolume(percent + pointerOffset);
-	videoRight.setVolume(100 - percent + pointerOffset);
+	videoLeft.setVolume(this.percent + pointerOffset);
+	videoRight.setVolume(100 - this.percent + pointerOffset);
 }
 
-function animateTo(percet,seconds)
-{
-	
-}
-
-let target = 100;
-function render(){
-	let current = videoLeft.getWidth();
-	moveTo(current++);
-	window.requestAnimationFrame(render);
-}
-
-// window.requestAnimationFrame(render);
-
-
-overlay.element.addEventListener('mousedown',function(event){
+function onmousedown(event){
 	event.stopPropagation();
 	event.preventDefault();
 
@@ -117,13 +155,14 @@ overlay.element.addEventListener('mousedown',function(event){
 	pointerOffset = 100 * event.pageX / window.innerWidth - overlay.position;
 	if(!hasStarted)
 		play();
-});
+}
 
-overlay.element.addEventListener('mouseup',function(event){
+
+function onmouseup(event){
 	event.stopPropagation();
 	event.preventDefault();
 	isDown = false;
-});
+}
 
 function onmousemove (event){
 	event.stopPropagation();
@@ -131,19 +170,18 @@ function onmousemove (event){
 
 	if(isDown)
 	{
-		let percent = 100 * event.pageX / window.innerWidth;	
-		moveTo(percent - pointerOffset);
+		this.percent = (100 * event.pageX / window.innerWidth) - pointerOffset;	
+		moveTo.call(this);
 	}
 }
-container.addEventListener('mousemove',onmousemove);
 
-window.onblur = function(){
+function onblurCallback(){
 	videoLeft.pause();
 	videoRight.pause();
 	resync()
 }
 
-window.onfocus = function(){
+function onfocusCallback(){
 	videoLeft.play();
 	videoRight.play();
 }

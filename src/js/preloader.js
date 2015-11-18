@@ -1,8 +1,10 @@
 'user strict';
 
 // Private properties 
-let video1 = Symbol(); 
-let video2 = Symbol();
+
+let targets = {video1:0,video2:0};
+// let video1 = Symbol(); 
+// let video2 = Symbol();
 
 export default class Preloader 
 {
@@ -11,14 +13,13 @@ export default class Preloader
      * @param infoID {String} ID of div where percentage info will be shown
      * @param startCallback {Function} Function to call when everything is ready to play
 	 */
-	constructor(id,infoID,startCallback)
+	constructor(id,startCallback)
 	{
 		this.element = document.getElementById(id);
-		this.status = document.getElementById(infoID);
 		this.callback = startCallback;
 
-		this['video1'] = 0;
-		this['video2'] = 0;
+		// target['video1'] = 0;
+		// target['video2'] = 0;
 	}
 	/*
 	 * Method that hides the whole preloader
@@ -33,14 +34,14 @@ export default class Preloader
 	 * @param target {String} ID of video item calling this method.
 	 */
 	setProgress(percent,target){
-		this[target] = percent;
-		let value = Math.floor((this['video1'] + this['video2']) * 0.5);
-		this.status.innerHTML = value + "%";
+		targets[target] = percent;
+		let value = Math.floor((targets['video1'] + targets['video2']) * 0.5);
+		this.element.innerHTML = value + "%";
 
 		if(value >= 100){
 			this.callback();
 			this.fadeout();
-			this.status.innerHTML = 100 + "%";
+			this.element.innerHTML = 100 + "%";
 		}
 
 	}

@@ -1,7 +1,28 @@
 #container{
-	opacity: 0;
-	&.fadein{
-		opacity: 1;
-		transition: opacity 1s;
+	top:0;
+	left:0;
+	opacity:1;
+	width:100%;
+	height:100%;
+	position:absolute;
+	background-color:#000;
+	text-align:center;
+	font-family: 'Arial','sans_serif';
+
+	.videoWrapper{
+		@include radial-gradient(#adcdef,#3d7cbf);
+		background-size:100vw 100vh
 	}
+
+	&.fadein
+	{
+		.videoWrapper iframe
+		{
+			opacity: 1;
+			transition: opacity 1s;
+		}
+
+	}
+	.videoWrapper iframe{opacity: 0;}
+	
 }
