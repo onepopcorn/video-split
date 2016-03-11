@@ -1,3 +1,7 @@
+/*
+ * This code is licensed under GPL. For more details look LICENSE.txt
+ */
+
 'use strict';
 
 function normalize(value)

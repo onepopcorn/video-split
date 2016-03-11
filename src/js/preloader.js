@@ -1,10 +1,12 @@
+/*
+ * This code is licensed under GPL. For more details look LICENSE.txt
+ */
+
 'user strict';
 
 // Private properties 
 
 let targets = {video1:0,video2:0};
-// let video1 = Symbol(); 
-// let video2 = Symbol();
 
 export default class Preloader 
 {
@@ -17,9 +19,6 @@ export default class Preloader
 	{
 		this.element = document.getElementById(id);
 		this.callback = startCallback;
-
-		// target['video1'] = 0;
-		// target['video2'] = 0;
 	}
 	/*
 	 * Method that hides the whole preloader

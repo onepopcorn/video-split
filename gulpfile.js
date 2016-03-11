@@ -79,6 +79,7 @@ gulp.task('server',function(){
 		server:{
 			baseDir:'./bin'
 		},
+		browser: "firefox"
 		// proxy:"http://videosplit.test"
 	})
 });

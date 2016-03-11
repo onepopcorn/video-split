@@ -1,6 +1,8 @@
-'use strict';
+/*
+ * This code is licensed under GPL. For more details look LICENSE.txt
+ */
 
-// NOTE: Some graphics card with Chrome's hardware accelerated graphics gets poor quality. More info here: https://vimeo.com/forums/topic:109071
+'use strict';
 
 import Froogaloop from 'vimeo-froogaloop';
 import TWEEN from 'tween.js';
@@ -20,10 +22,13 @@ let syncing = false;
 let hasStarted = false;
 let pointerOffset = 0;
 
+const texts = ['It\'s amazing the difference','a bit of sky can make.','- Shel Silverstein -'] 
+
 function init(){
 
 	let tween4 = new TWEEN.Tween({percent:100})
-				 .to({percent:50},2000)
+				 .to({percent:50},2500)
+				 .delay(1000)
 				 .easing(TWEEN.Easing.Cubic.InOut)
 				 .onUpdate(moveTo)
 				 .onStart(function(){
@@ -33,36 +38,36 @@ function init(){
 				 .onComplete(function(){
 				 	overlay.showArrows();
 				 	document.getElementById('container').className = "fadein";
-				 	videoLeft.setText('arrastra las flechas');
-				 	videoRight.setText('arrastra las flechas');
+				 	videoLeft.setText('drag the arrows');
+				 	videoRight.setText('drag the arrows');
 				 	setInteractivity();
 				 });
 
 	let tween3 = new TWEEN.Tween({percent:0})
-				 .to({percent:100},2000)
+				 .to({percent:100},2500)
 				 .easing(TWEEN.Easing.Cubic.InOut)
 				 .onUpdate(moveTo)
 				 .chain(tween4);
 
 	let tween2 = new TWEEN.Tween({percent:100})
-				 .to({percent:0},2000)
+				 .to({percent:0},2500)
 				 .easing(TWEEN.Easing.Cubic.InOut)
 				 .onUpdate(moveTo)
 				 .chain(tween3)
 				 .onComplete(function(){
-				 	videoLeft.setText("descúbrelo tu mismo");
+				 	videoLeft.setText(texts[2]);
 				 });
 
 	let tween1 = new TWEEN.Tween({percent:0})
-				 .to({percent:100})
+				 .to({percent:100},2500)
 				 .easing(TWEEN.Easing.Cubic.InOut)
 				 .onUpdate(moveTo)
 				 .chain(tween2)
 				 .onStart(function(){
-				 	videoLeft.setText("Siempre existe");
+				 	videoLeft.setText(texts[0]);
 				 })
 				 .onComplete(function(){
-				 	videoRight.setText("otro punto de vista");
+				 	videoRight.setText(texts[1]);
 				 })
 				 .start();
 
@@ -118,9 +123,6 @@ function resync(e){
 
 	videoLeft.seek(lower);
 	videoRight.seek(lower);
-
-	// videoLeft.addEventListener('bufferEnd',bufferEndHandler);
-	// videoRight.addEventListener('bufferEnd',bufferEndHandler);
 }
 
 function onBuffer(e){}
@@ -151,7 +153,10 @@ function onmousedown(event){
 	event.preventDefault();
 
 	isDown = true
-	// This is used to move the overlay keeping the offset mouse position and preventing a quick jump when mousemove event is fired.
+	/* 
+	 * This is used to move the overlay keeping the offset mouse position and
+	 * preventing a quick jump when mousemove event is fired.
+	 */
 	pointerOffset = 100 * event.pageX / window.innerWidth - overlay.position;
 	if(!hasStarted)
 		play();

@@ -10,7 +10,6 @@
 		margin-left:$bar-outter-width / 2;
 		width: $bar-inner-width;
 		background-color:$main-color;
-		@include box-shadow(0,0,4px,$main-color);
 	}
 
 	.arrow{

@@ -1,3 +1,7 @@
+/*
+ * This code is licensed under GPL. For more details look LICENSE.txt
+ */
+
 'use strict';
 
 const BUFFER_LOADED_THRESHOLD =  10 // Seconds - Vimeo's doesn't haves a way to know how much buffer is needed to start the reproduction. Hence the forced values.

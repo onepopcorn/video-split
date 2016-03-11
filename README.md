@@ -23,7 +23,12 @@ Finally install Gulp and other dependencies with:
 npm install
 ```
 
-When finished use `gulp` to start the development environment. If you just want compile for production use `gulp compile` 
+When finished use `gulp` to start the development environment. If you just want compile for production use `gulp compile`
+
+## License
+
+This project is under GPL license. Look LICENSE.txt for more details. 
+Videos licensed by [Patrick Ickxs](https://vimeo.com/pickxs)
 
 ## TO DO
 

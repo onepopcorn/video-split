@@ -5,12 +5,12 @@
 	width:100%;
 	height:100%;
 	position:absolute;
-	background-color:#000;
+	background-color:$bg-color;
 	text-align:center;
 	font-family: 'Arial','sans_serif';
 
 	.videoWrapper{
-		@include radial-gradient(#adcdef,#3d7cbf);
+		background-color:$bg-color;
 		background-size:100vw 100vh
 	}
 
